@@ -73,8 +73,8 @@ class KalshiClient:
         """GET, write the raw body to out_path (gzip JSON), record it, return it."""
         data = self._get(endpoint, params)
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        with gzip.open(out_path, "wt") as f:
-            json.dump(data, f)
+        with open(out_path, "wb") as raw, gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as gz:
+            gz.write(json.dumps(data).encode())  # mtime=0: same response, same bytes, same hash
         self.manifest.record(out_path, endpoint, params)
         return data
 

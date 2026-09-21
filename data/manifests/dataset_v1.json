@@ -1,0 +1,79 @@
+{
+  "version": "v1",
+  "label_config": {
+    "horizon_h": 4,
+    "move_threshold": 0.03,
+    "max_staleness_h": 2,
+    "max_spread": 0.2,
+    "settle_buffer_h": 4,
+    "min_event_spacing_h": 4
+  },
+  "markets_in_universe": 766,
+  "attrition": {
+    "candidates": 76181,
+    "end_one_sided": 677,
+    "end_stale": 6332,
+    "events": 21587,
+    "markets_without_candles": 0,
+    "near_close": 1451,
+    "purged_at_seal": 1287,
+    "t0_no_quote": 1637,
+    "t0_one_sided": 2471,
+    "t0_stale": 40316,
+    "wide_spread": 1710
+  },
+  "features": [
+    "mid",
+    "spread",
+    "rel_spread",
+    "dist_from_half",
+    "ret_1h",
+    "ret_4h",
+    "ret_24h",
+    "prev_label",
+    "vol_24h",
+    "range_24h",
+    "log_volume_24h",
+    "active_hours_24h",
+    "oi_change_24h",
+    "hours_since_open",
+    "hours_to_close"
+  ],
+  "splits": {
+    "dev": {
+      "events": 18335,
+      "event_groups": 534,
+      "markets": 557,
+      "span": [
+        "2023-07-17T20:00:00+00:00",
+        "2026-02-24T20:00:00+00:00"
+      ],
+      "labels": {
+        "FLAT": 15788,
+        "UP": 1320,
+        "DOWN": 1227
+      },
+      "sha256": "311e70e2d0f85bd59b239b4795df900743186efa664af6d1a7df9f2894c7be5a"
+    },
+    "sealed": {
+      "events": 1965,
+      "event_groups": 137,
+      "markets": 145,
+      "span": [
+        "2026-02-27T16:00:00+00:00",
+        "2026-09-21T08:00:00+00:00"
+      ],
+      "labels": {
+        "FLAT": 1159,
+        "UP": 440,
+        "DOWN": 366
+      },
+      "sha256": "22e99576b7fb868b714d668973c32f62ed3075ad083be01eaf6b213fc8658992"
+    }
+  },
+  "inputs": {
+    "kalshi_20260921.jsonl": "40ec68b7dc75a28eb1cdfce65f3e0971d7c34b2dfd7fde34cf625f5d835f0d4b",
+    "kalshi_sample_20260921.jsonl": "c6b7acddf9c28f8b2a7cc10cd8c8fa726f0b586e28f8c3a3aa8e2c18c988052c",
+    "kalshi_spring_20260921.jsonl": "19de988e77e19772a42b8132a9640453a01ca1ecce57aa302b376e2143b4e08e"
+  }
+}

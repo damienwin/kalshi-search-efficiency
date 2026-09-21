@@ -59,16 +59,39 @@ def fit_predict_xgb(train, val, features, params) -> tuple[np.ndarray, np.ndarra
 
 
 # ── inference ────────────────────────────────────────────────────────────────
+def _group_confusions(y, pred, inv, n_groups) -> np.ndarray:
+    """Per-group 3x3 confusion counts, shape (n_groups, 3, 3)."""
+    li = {l: i for i, l in enumerate(LABELS)}
+    yi = np.array([li[v] for v in y])
+    pi = np.array([li[v] for v in pred])
+    cm = np.zeros((n_groups, 3, 3))
+    np.add.at(cm, (inv, yi, pi), 1)
+    return cm
+
+
+def _macro_f1_from_cm(cm: np.ndarray) -> np.ndarray:
+    """Macro F1 from confusion matrices (..., 3, 3), zero_division=0 like sklearn."""
+    tp = np.diagonal(cm, axis1=-2, axis2=-1)
+    denom = cm.sum(-1) + cm.sum(-2)  # (tp+fn) + (tp+fp)
+    f1 = np.divide(2 * tp, denom, out=np.zeros_like(tp), where=denom > 0)
+    return f1.mean(-1)
+
+
 def clustered_paired_bootstrap(y, pred_a, pred_b, groups, n_boot=2000, seed=0) -> dict:
-    """CI for macro_f1(a) - macro_f1(b), resampling event groups."""
+    """CI for macro_f1(a) - macro_f1(b), resampling event groups.
+
+    A resample of groups is a vector of group multiplicities, so each replicate's
+    confusion matrix is the multiplicity-weighted sum of per-group matrices.
+    """
     y, pred_a, pred_b, groups = map(np.asarray, (y, pred_a, pred_b, groups))
     uniq, inv = np.unique(groups, return_inverse=True)
-    members = [np.flatnonzero(inv == g) for g in range(len(uniq))]
+    cm_a = _group_confusions(y, pred_a, inv, len(uniq)).reshape(len(uniq), 9)
+    cm_b = _group_confusions(y, pred_b, inv, len(uniq)).reshape(len(uniq), 9)
     rng = np.random.default_rng(seed)
-    deltas = np.empty(n_boot)
-    for b in range(n_boot):
-        idx = np.concatenate([members[g] for g in rng.integers(0, len(uniq), len(uniq))])
-        deltas[b] = macro_f1(y[idx], pred_a[idx]) - macro_f1(y[idx], pred_b[idx])
+    w = np.stack([np.bincount(rng.integers(0, len(uniq), len(uniq)), minlength=len(uniq))
+                  for _ in range(n_boot)]).astype(float)
+    deltas = (_macro_f1_from_cm((w @ cm_a).reshape(-1, 3, 3))
+              - _macro_f1_from_cm((w @ cm_b).reshape(-1, 3, 3)))
     lo, hi = np.percentile(deltas, [2.5, 97.5])
     return {"delta": macro_f1(y, pred_a) - macro_f1(y, pred_b),
             "ci95": [float(lo), float(hi)], "excludes_zero": bool(lo > 0 or hi < 0),

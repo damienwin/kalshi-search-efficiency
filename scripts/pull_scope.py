@@ -40,6 +40,16 @@ def load_cfg() -> dict:
         return yaml.safe_load(f)
 
 
+def fetched_paths() -> set:
+    """Raw files already recorded in any Kalshi manifest (skipped on re-runs)."""
+    d = os.path.join(REPO_ROOT, "data", "manifests")
+    done = set()
+    for name in os.listdir(d):
+        if name.startswith("kalshi_") and name.endswith(".jsonl"):
+            done |= Manifest(os.path.join(d, name)).recorded_paths()
+    return done
+
+
 def client_for(tag: str, delay: float) -> KalshiClient:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
     return KalshiClient(Manifest(os.path.join(REPO_ROOT, "data", "manifests", f"kalshi_{tag}_{stamp}.jsonl")),
@@ -68,6 +78,7 @@ def directional_events(market: dict, lcfg: dict) -> int:
 
 def pull_spring(cfg: dict) -> None:
     client = client_for("spring", cfg["kalshi"]["request_delay"])
+    done = fetched_paths()
     cutoff_ts = iso_to_ts(client.get_cutoff()["market_settled_ts"])
     with open(os.path.join(REPO_ROOT, "config", "spring_markets.txt")) as f:
         tickers = [t.strip() for t in f if t.strip() and not t.startswith("#")]
@@ -77,7 +88,7 @@ def pull_spring(cfg: dict) -> None:
         m = client._get_saved(f"/historical/markets/{t}", {}, out)["market"]
         m["_source"] = "historical" if iso_to_ts(m["close_time"]) < cutoff_ts else "live"
         m["_scope"] = "spring"
-        client.fetch_candles(m, m["_source"], set(), cfg["kalshi"]["period_interval"])
+        client.fetch_candles(m, m["_source"], done, cfg["kalshi"]["period_interval"])
         markets.append(m)
     write_jsonl(os.path.join(BUILD, "universe_spring.jsonl"), markets)
     log.info("spring scope: %d markets, %d requests", len(markets), client.n_requests)
@@ -85,6 +96,7 @@ def pull_spring(cfg: dict) -> None:
 
 def pull_sample(cfg: dict, per_month: int, seed: int) -> None:
     client = client_for("sample", cfg["kalshi"]["request_delay"])
+    done = fetched_paths()
     frame = [m for m in read_jsonl(os.path.join(BUILD, "universe.jsonl"))
              if iso_to_ts(m["close_time"]) >= iso_to_ts(SPRING_END)]
     by_month = collections.defaultdict(list)
@@ -100,7 +112,7 @@ def pull_sample(cfg: dict, per_month: int, seed: int) -> None:
             if got == per_month:
                 break
             tried += 1
-            client.fetch_candles(m, m["_source"], set(), cfg["kalshi"]["period_interval"])
+            client.fetch_candles(m, m["_source"], done, cfg["kalshi"]["period_interval"])
             if directional_events(m, cfg["labels"]) >= 3:
                 m["_scope"] = "sample"
                 kept.append(m)

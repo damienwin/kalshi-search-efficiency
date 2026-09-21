@@ -192,8 +192,8 @@ class GuardianClient:
                           "page-size": 50, "order-by": "newest", "show-fields": "body,headline,trailText"}
                 data = self._get(params)
                 os.makedirs(d, exist_ok=True)
-                with gzip.open(path, "wt") as f:
-                    json.dump(data, f)
+                with open(path, "wb") as raw, gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as gz:
+                    gz.write(json.dumps(data).encode())
                 self.manifest.record(path, "guardian/search", {"key": key, "page": page})
             resp = data.get("response", {})
             items.extend(resp.get("results", []))

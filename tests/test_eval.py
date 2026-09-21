@@ -119,3 +119,31 @@ def test_seal_split_is_disjoint_in_time_and_groups(ev):
     assert dev.t_end.max() + 4 * HOUR <= sealed.t0.min()
     assert len(dev) + len(sealed) + purged == len(ev)
     assert 0.08 < len(sealed) / len(ev) < 0.25
+
+
+def test_confusion_macro_f1_matches_sklearn():
+    from ksearch.eval.cv import LABELS, _group_confusions, _macro_f1_from_cm, macro_f1
+    rng = np.random.default_rng(1)
+    y = rng.choice(LABELS, 500, p=[.1, .8, .1])
+    p = rng.choice(LABELS, 500)
+    p[:50] = "UP"  # include classes with zero support/predictions in some groups
+    cm = _group_confusions(y, p, np.zeros(500, dtype=int), 1)[0]
+    assert _macro_f1_from_cm(cm) == pytest.approx(macro_f1(y, p), abs=1e-12)
+    assert _macro_f1_from_cm(np.zeros((3, 3))) == 0.0
+
+
+def test_L13_refetch_of_same_response_keeps_hash(tmp_path, monkeypatch):
+    import time as _time
+    import ksearch.data.kalshi as kalshi
+    import ksearch.data.manifest as man
+    monkeypatch.setattr(man, "REPO_ROOT", str(tmp_path))
+    c = kalshi.KalshiClient(Manifest(str(tmp_path / "a.jsonl")), request_delay=0)
+    monkeypatch.setattr(c, "_get", lambda endpoint, params=None: {"candlesticks": [{"end_period_ts": 1}]})
+    out = str(tmp_path / "data" / "raw" / "c.json.gz")
+    c._get_saved("/x", {}, out)
+    first = man.sha256_file(out)
+    _time.sleep(1.1)  # a gzip header timestamp would differ now
+    c.manifest = Manifest(str(tmp_path / "b.jsonl"))
+    c._get_saved("/x", {}, out)
+    assert man.sha256_file(out) == first
+    assert man.verify([str(tmp_path / "a.jsonl"), str(tmp_path / "b.jsonl")]) == []

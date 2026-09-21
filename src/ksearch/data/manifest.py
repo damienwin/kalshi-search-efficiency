@@ -55,18 +55,23 @@ class Manifest:
 
 
 def verify(manifest_paths: list[str]) -> list[str]:
-    """Return a list of problems; empty means every recorded file is intact."""
-    problems = []
+    """Return a list of problems; empty means every recorded file is intact.
+
+    Each path is checked against its most recent record across all manifests.
+    """
+    latest = {}
     for mp in manifest_paths:
-        latest = {}
         for e in Manifest(mp).entries():
-            latest[e["path"]] = e  # a re-fetch supersedes the earlier record
-        for rel, e in latest.items():
-            full = os.path.join(REPO_ROOT, rel)
-            if not os.path.exists(full):
-                problems.append(f"missing: {rel}")
-            elif sha256_file(full) != e["sha256"]:
-                problems.append(f"hash mismatch: {rel}")
+            prev = latest.get(e["path"])
+            if prev is None or e["fetched_at"] >= prev["fetched_at"]:
+                latest[e["path"]] = e  # a re-fetch, in any manifest, supersedes the earlier record
+    problems = []
+    for rel, e in sorted(latest.items()):
+        full = os.path.join(REPO_ROOT, rel)
+        if not os.path.exists(full):
+            problems.append(f"missing: {rel}")
+        elif sha256_file(full) != e["sha256"]:
+            problems.append(f"hash mismatch: {rel}")
     return problems
 
 
