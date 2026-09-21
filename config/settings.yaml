@@ -1,0 +1,31 @@
+kalshi:
+  request_delay: 0.15          # seconds between requests
+  period_interval: 60          # candle size, minutes
+  universe_file: config/series_universe.txt
+  min_close_date: "2023-10-01" # Spring window start; no upper bound (extends to present)
+  min_volume_dollars: 5000     # same filter as Spring
+  exclude_multivariate: true   # combo/parlay markets (mve_collection_ticker set)
+
+labels:
+  horizon_h: 4                 # label = direction of mid over t0 -> t0 + 4 real hours
+  move_threshold: 0.03         # |delta mid| above this is UP/DOWN
+  max_staleness_h: 2           # quote must be observed within this long before t0 and t0+4h
+  max_spread: 0.20             # wider books are not a price
+  settle_buffer_h: 4           # drop events whose endpoint is within this of close_time
+  min_event_spacing_h: 4       # events in one market never overlap
+
+cv:
+  n_splits: 5
+  embargo_h: 4
+  keep_threshold: 0.005        # legacy paired keep rule, reported alongside the CI
+  n_bootstrap: 2000
+  sealed_fraction: 0.15        # last 15% of time, by event group, built once
+
+classifier:
+  n_estimators: 200
+  max_depth: 4
+  learning_rate: 0.05
+  subsample: 0.7
+  colsample_bytree: 0.6
+  min_child_weight: 3
+  seed: 42

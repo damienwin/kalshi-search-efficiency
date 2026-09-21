@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ksearch"
+version = "0.1.0"
+description = "Kalshi price-movement prediction and AutoML search-efficiency study"
+requires-python = ">=3.11"
+dependencies = [
+  "requests>=2.31", "pyyaml>=6.0", "pandas>=2.1", "numpy>=1.26",
+  "scikit-learn>=1.4", "xgboost>=2.0", "pyarrow>=15",
+]
+
+[project.optional-dependencies]
+sentiment = ["transformers>=4.40", "torch>=2.2", "trafilatura>=1.6", "beautifulsoup4>=4.12", "lxml>=5.0"]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: hits a live API (deselect with -m 'not live')"]

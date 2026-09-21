@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# L14: refuse to push secrets, PII, raw data, or large files to the public repo.
+set -euo pipefail
+bad=$(git ls-files | grep -E '^(\.env$|private/|data/raw/|data/build/)' || true)
+big=$(git ls-files -z | xargs -0 -I{} sh -c 'f="{}"; [ -f "$f" ] && [ $(wc -c <"$f") -gt 5242880 ] && echo "$f"' || true)
+if [ -n "$bad$big" ]; then
+  echo "pre-push blocked. Tracked files that must not be public:" >&2
+  printf '%s\n' $bad $big >&2
+  exit 1
+fi

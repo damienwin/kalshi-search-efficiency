@@ -1,0 +1,23 @@
+# Secrets / PII — never commit
+.env
+private/
+
+# Data: only manifests are committed
+data/raw/
+data/build/
+sealed/*
+!sealed/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+catboost_info/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+.claude/
