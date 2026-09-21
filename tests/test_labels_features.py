@@ -144,3 +144,15 @@ def test_L6_prev_label_requires_resolution():
     unresolved = dict(rows[0], t_end=t0 + HOUR)
     assert np.isnan(event_features(mc, t0, OPEN, CLOSE, 2, unresolved)["prev_label"])
     assert not np.isnan(event_features(mc, t0, OPEN, CLOSE, 2, rows[0])["prev_label"])
+
+
+# ── L12: an article counts only if published strictly before t0 ─────────────
+def test_L12_articles_strictly_before_t0():
+    from datetime import datetime, timezone
+    from ksearch.data.news import assign_articles
+    t0 = OPEN + 40 * HOUR
+    iso = lambda ts: datetime.fromtimestamp(ts, timezone.utc).isoformat()
+    arts = [{"url": u, "text": "x", "date": iso(ts)} for u, ts in
+            [("before", t0 - 60), ("at_t0", t0), ("after", t0 + 60), ("too_old", t0 - 6 * HOUR - 1),
+             ("edge", t0 - 6 * HOUR), ("before", t0 - 120)]]
+    assert [a["url"] for a in assign_articles(arts, t0, 6)] == ["before", "edge"]

@@ -29,3 +29,7 @@ classifier:
   colsample_bytree: 0.6
   min_child_weight: 3
   seed: 42
+
+news:
+  lookback_h: 6                # Spring: articles in [t0 - 6h, t0)
+  daily_cap: 450               # per Guardian key (free tier is 500/day)

@@ -67,3 +67,22 @@ def test_candle_windows_respect_api_cap():
     assert windows[0][0] == open_ts and windows[-1][1] == close_ts
     assert all(b == c for (_, b), (c, _) in zip(windows, windows[1:]))  # contiguous
     assert all((e - s) / 3600 < MAX_CANDLES_PER_REQUEST for s, e in windows)
+
+
+def test_guardian_errors_never_contain_the_api_key(tmp_path, monkeypatch):
+    import pytest
+    import ksearch.data.news as news
+    from ksearch.data.manifest import Manifest
+
+    class Resp:
+        status_code, url = 401, "https://content.guardianapis.com/search?api-key=SECRET123"
+        def raise_for_status(self):
+            raise RuntimeError(self.url)
+
+    monkeypatch.setattr(news.requests, "get", lambda *a, **k: Resp())
+    monkeypatch.setattr(news.time, "sleep", lambda s: None)
+    c = news.GuardianClient(["SECRET123"], Manifest(str(tmp_path / "m.jsonl")), delay=0)
+    c.limiter.path = str(tmp_path / "usage.json")
+    with pytest.raises(news.GuardianError) as e:
+        c.search("q", "2026-01-01", "2026-01-02")
+    assert "SECRET123" not in str(e.value) and "expired" in str(e.value)
