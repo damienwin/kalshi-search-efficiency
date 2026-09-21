@@ -1,10 +1,7 @@
 # Data card: Kalshi v1 events
 
-**Status:** draft for progress report #1 (Sep 25, 2026). Numbers below come
-from the Spring-scope build (`data/build/spring_only`). The full v1 scope,
-Spring markets plus the 2025–26 sample, replaces them when `data-v1` is tagged.
-Every count on this page is read from `data/manifests/dataset_v1.json` or
-`attrition.json`, never typed by hand.
+**Version:** `data-v1` (Sep 2026). Counts are copied from
+`data/manifests/dataset_v1.json` (committed) and `scope_sample.json`.
 
 ## What an example is
 
@@ -34,25 +31,35 @@ The scope matches Spring's, with current data:
 - **2023-10 → 2024-12:** exactly the 304 markets in the Spring dataset (`config/spring_markets.txt`).
 - **2025-01 → now:** Spring's rule applied to later months. That means settled markets with volume ≥ $5k in the Spring series universe and ≥ 3 directional events, drawn uniformly at random within each close month (seed 0) at Spring's density of about 22 markets/month.
 
-## Label filters and attrition (Spring scope)
+## Size and splits
+
+**766 markets** (304 Spring + 462 sampled; the 2025–26 sample kept 22 of 94–276
+candidates tried per month, from a frame of 190,413 settled markets) and **21,587 events**.
+
+| Split | Events | Markets | Event groups | Span | FLAT / UP / DOWN |
+|---|---|---|---|---|---|
+| dev | 18,335 | 557 | 534 | 2023-07-17 → 2026-02-24 | 15,788 / 1,320 / 1,227 |
+| sealed | 1,965 | 145 | 137 | 2026-02-27 → 2026-09-21 | 1,159 / 440 / 366 |
+
+1,287 dev events that would have run into the sealed period were purged. The
+sealed slice is much less FLAT (59%) than dev (86%): later markets are more
+volatile. That is a distribution shift the sealed evaluation must report.
+
+## Label filters and attrition
 
 Candidates are every grid t0 in each market's life. A candidate becomes an
 event only if it passes every filter below, checked in order. The first failure is counted.
 
 | Filter | Dropped |
 |---|---|
-| near settlement (t0 + 4h within 4h of close) | 549 |
-| no quote at t0 | 1,080 |
-| **quote at t0 older than 2h** | **22,762** |
-| one-sided book at t0 (bid = 0 or ask = 1) | 972 |
-| quote at t0 + 4h older than 2h | 3,154 |
-| one-sided book at t0 + 4h | 264 |
-| spread > 0.20 at either end | 553 |
-| **events** | **3,170** of 32,504 candidates |
-| dev events purged because they run into the sealed period | 370 |
-
-Splits: **dev 2,680** events (218 markets, 2023-07-17 → 2024-11-12; FLAT 2,043 / UP 327 / DOWN 310).
-**Sealed 120** (23 markets, 2024-11-13 → 2024-12-28). The median |Δmid| is 0.01, the median spread 0.05.
+| near settlement (t0 + 4h within 4h of close) | 1,451 |
+| no quote at t0 | 1,637 |
+| **quote at t0 older than 2h** | **40,316** |
+| one-sided book at t0 (bid = 0 or ask = 1) | 2,471 |
+| quote at t0 + 4h older than 2h | 6,332 |
+| one-sided book at t0 + 4h | 677 |
+| spread > 0.20 at either end | 1,710 |
+| **events** | **21,587** of 76,181 candidates |
 
 ### Why stale quotes are dropped rather than carried forward
 
@@ -63,6 +70,18 @@ settle the question, because it is always the previous `close`: 100% of 34,806
 consecutive candles, including the 9,090 where the quote moved. Gaps are spread
 evenly across weekdays and hours, with a median of 6h and a 99th percentile of
 167h.
+
+## News coverage
+
+| | Events |
+|---|---|
+| with ≥ 1 article in [t0 − 6h, t0) | 2,380 of 20,300 |
+| with ≥ 2 articles (Spring's inclusion rule) | 1,979 |
+
+All current coverage comes from the Spring cache (242 Spring markets with
+events, `provisional_sentiment = 1`). The 460 sampled markets have no search
+yet, pending new Guardian API keys. FinBERT rates 55% of the 45,009 articles
+neutral, 43% negative, and 2% positive.
 
 ## Point-in-time guarantees
 

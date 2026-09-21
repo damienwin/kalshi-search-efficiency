@@ -108,9 +108,13 @@ def legacy_keep_rule(cand_folds, base_folds, threshold) -> dict:
             "n_folds": len(cand_folds)}
 
 
-def run_cv(events: pd.DataFrame, features: list[str], cv_cfg: dict, clf_params: dict) -> dict:
+def run_cv(events: pd.DataFrame, features: list[str], cv_cfg: dict, clf_params: dict,
+           reference_features: list[str] | None = None) -> dict:
+    """reference_features: also fit a second XGBoost on these features ("reference")
+    on the same folds, and test model vs reference with the same paired bootstrap."""
     folds = walk_forward_folds(events, cv_cfg["n_splits"], cv_cfg["embargo_h"])
-    names = ["model"] + list(BASELINES)
+    refs = {"reference": reference_features} if reference_features else {}
+    names = ["model"] + list(refs) + list(BASELINES)
     oof = {n: np.empty(len(events), dtype=object) for n in names}
     proba = np.full((len(events), 3), np.nan)
     in_val = np.zeros(len(events), dtype=bool)
@@ -119,6 +123,8 @@ def run_cv(events: pd.DataFrame, features: list[str], cv_cfg: dict, clf_params: 
         tr, va = events.iloc[f.train], events.iloc[f.val]
         preds = {"model": None}
         preds["model"], p = fit_predict_xgb(tr, va, features, clf_params)
+        for n, feats in refs.items():
+            preds[n], _ = fit_predict_xgb(tr, va, feats, clf_params)
         for n, fn in BASELINES.items():
             preds[n] = fn(tr, va)
         for n in names:
@@ -137,7 +143,7 @@ def run_cv(events: pd.DataFrame, features: list[str], cv_cfg: dict, clf_params: 
     comparisons = {
         f"model_vs_{b}": clustered_paired_bootstrap(y, oof["model"][in_val], oof[b][in_val], groups,
                                                     cv_cfg["n_bootstrap"])
-        for b in BASELINES
+        for b in list(refs) + list(BASELINES)
     }
     pf = pd.DataFrame(per_fold)
     return {

@@ -33,6 +33,8 @@ def main() -> int:
     ap.add_argument("--with-provisional", action="store_true",
                     help="include hours_to_close (L7 ablation)")
     ap.add_argument("--features", choices=["price", "price+sentiment", "sentiment"], default="price")
+    ap.add_argument("--reference", choices=["price", "price+sentiment", "sentiment"], default=None,
+                    help="also fit this feature set on the same folds and test model vs reference")
     ap.add_argument("--news-only", action="store_true",
                     help="restrict to events with >= 2 articles (the Spring inclusion rule)")
     ap.add_argument("--out", default=os.path.join(REPO_ROOT, "results", "cv_price_v1.json"))
@@ -43,9 +45,11 @@ def main() -> int:
         cfg = yaml.safe_load(f)
     price = [c for c in PRICE_FEATURES if args.with_provisional or c not in PROVISIONAL_FEATURES]
     sentiment = [c for c in SENTIMENT_FEATURES if c != "event_hour"]  # t0 is grid-aligned; hour is schedule
-    features = {"price": price, "price+sentiment": price + sentiment, "sentiment": sentiment}[args.features]
+    sets = {"price": price, "price+sentiment": price + sentiment, "sentiment": sentiment}
+    features = sets[args.features]
+    reference = sets[args.reference] if args.reference else None
     events = pd.read_parquet(args.data)
-    if args.features != "price" or args.news_only:
+    if "sentiment" in args.features or (args.reference and "sentiment" in args.reference) or args.news_only:
         sent = pd.read_parquet(os.path.join(os.path.dirname(args.data), "sentiment.parquet"))
         events = events.merge(sent, on=["market_ticker", "t0"], how="left", validate="one_to_one")
         if args.news_only:
@@ -53,7 +57,8 @@ def main() -> int:
     events = events.sort_values(["t0", "market_ticker"], kind="mergesort")
     events = events.reset_index(drop=True)
 
-    res = run_cv(events, features, cfg["cv"], cfg["classifier"])
+    res = run_cv(events, features, cfg["cv"], cfg["classifier"], reference)
+    res["feature_set"], res["reference_set"], res["news_only"] = args.features, args.reference, args.news_only
     res["data_sha256"] = sha256_file(args.data)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w") as f:

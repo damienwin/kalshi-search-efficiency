@@ -9,15 +9,21 @@ This repo is the rebuild of the CSC 4444 Spring 2026 project
 It starts from corrected labels and a leakage-tested pipeline. See
 [docs/SPRING_ARTIFACT.md](docs/SPRING_ARTIFACT.md) for what was wrong before and why.
 
-**Status (Sep 2026):** data layer, v1 labels, price features, and walk-forward
-CV are in place. Sentiment features and the search arms come next.
+**Status (Sep 2026):** dataset `data-v1` (766 markets, 21,587 events), price
+and sentiment features, and walk-forward CV are in place. Search arms come next.
+See [docs/reports/progress_1.md](docs/reports/progress_1.md) for results.
 
 ## Pipeline
 
 ```
-pull_kalshi.py   universe per series (historical + live endpoints) -> raw candles, verbatim + hashed
-build_dataset.py v1 labels + price features -> data/build/dev.parquet, sealed/sealed.parquet
-run_cv.py        walk-forward CV, price-only XGBoost vs baselines, clustered paired bootstrap
+pull_kalshi.py         universe per series (historical + live endpoints): the sampling frame
+pull_scope.py          the 304 Spring markets + a same-rule monthly sample; candles, verbatim + hashed
+build_dataset.py       v1 labels + price features -> dev.parquet, sealed/sealed.parquet
+import_spring_news.py  Spring Guardian cache -> deduplicated, hashed seed
+pull_news.py           per-market Guardian searches for non-Spring markets
+score_articles.py      FinBERT over every unique article, once
+build_sentiment.py     Spring sentiment features per event
+run_cv.py              walk-forward CV vs baselines / a reference feature set, clustered paired bootstrap
 ```
 
 ```bash
