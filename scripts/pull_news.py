@@ -39,7 +39,6 @@ def load_env(path: str) -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--build-dir", required=True)
-    ap.add_argument("--sealed-dir", default=os.path.join(REPO_ROOT, "sealed"))
     ap.add_argument("--estimate", action="store_true", help="list pending searches, fetch nothing")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -47,8 +46,7 @@ def main() -> int:
         cfg = yaml.safe_load(f).get("news", {})
     lookback_h = cfg.get("lookback_h", 6)
 
-    events = pd.concat([pd.read_parquet(os.path.join(args.build_dir, "dev.parquet")),
-                        pd.read_parquet(os.path.join(args.sealed_dir, "sealed.parquet"))])
+    events = pd.read_parquet(os.path.join(args.build_dir, "events_index.parquet"))  # no labels
     with open(os.path.join(args.build_dir, "universe.jsonl")) as f:
         markets = {m["ticker"]: m for m in map(json.loads, f)}
     todo = []

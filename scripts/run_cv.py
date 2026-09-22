@@ -23,7 +23,8 @@ SEALED_DIR = os.path.realpath(os.path.join(REPO_ROOT, "sealed"))
 
 
 def guard_not_sealed(path: str) -> None:
-    if os.path.realpath(path).startswith(SEALED_DIR + os.sep):
+    real = os.path.realpath(path)
+    if real.startswith(SEALED_DIR + os.sep) or os.path.basename(real) == "events_index.parquet":
         raise SystemExit(f"run_cv refuses sealed data: {path}")
 
 

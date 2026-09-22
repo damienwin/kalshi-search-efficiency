@@ -105,11 +105,28 @@ Paired model-vs-model tests on identical folds:
 | sentiment only, news events | 0.338 | — | vs momentum −0.058 [−0.088, −0.027] |
 
 Coverage is limited: 2,380 of 20,300 events have any article in the 6h
-lookback, and all of them are Spring-era markets.
+lookback, and all of them are Spring-era markets. **The news-only row is the
+real test of sentiment.** In the all-dev row, about 85% of scored events have
+no articles, so sentiment is blank for them and that model is mostly the price
+model. Its +0.008 should not be read as a test of sentiment over the full dataset.
+
+These sentiment numbers come from articles already downloaded in Spring 2026
+(the local Guardian cache). No live Guardian calls were needed.
 
 `hours_to_close` is held out because Kalshi can revise `close_time` after the
 fact. Adding it raises the Spring-scope edge to significance, so it needs the
 point-in-time check before it can be used.
+
+### What these numbers are, and are not
+
+- All F1 values above are **walk-forward CV on the development set**. The
+  sealed slice has not been scored. It is read only through a logged gateway;
+  its one read so far fetched event keys for sentiment (no labels, no
+  scoring) and is recorded in `data/manifests/sealed_access.jsonl`.
+- **The markets were selected on outcomes.** Spring's rule, reused here, keeps
+  a market only if it has ≥ 3 UP/DOWN events. That over-represents markets that
+  moved and inflates the absolute F1 of every predictor, momentum included.
+  The model-vs-momentum *difference* is the quantity to read.
 
 ## 5. Open items
 

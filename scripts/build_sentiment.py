@@ -9,8 +9,9 @@ For each market in <build-dir>/universe.jsonl:
             scripts/pull_news.py.
   assign    an event at t0 gets the articles published in [t0 - 6h, t0)   (L12)
   features  Spring's SentimentFeatureEngineer on the pre-computed article scores
-Writes <build-dir>/sentiment.parquet keyed by (market_ticker, t0), covering the
-dev and sealed events alike, and prints coverage.
+Event list comes from <build-dir>/events_index.parquet (no labels), so the
+sealed slice is never opened. Writes <build-dir>/sentiment.parquet keyed by
+(market_ticker, t0) for dev and sealed events alike, and prints coverage.
 """
 
 import argparse
@@ -71,16 +72,13 @@ def api_urls(market: dict, t0s, lookback_h: float) -> list[str] | None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--build-dir", required=True)
-    ap.add_argument("--sealed-dir", default=None, help="defaults to <build-dir>/sealed")
     ap.add_argument("--model", default="finbert")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     with open(os.path.join(REPO_ROOT, "config", "settings.yaml")) as f:
         lookback_h = yaml.safe_load(f).get("news", {}).get("lookback_h", 6)
 
-    sealed_dir = args.sealed_dir or os.path.join(args.build_dir, "sealed")
-    events = pd.concat([pd.read_parquet(os.path.join(args.build_dir, "dev.parquet")),
-                        pd.read_parquet(os.path.join(sealed_dir, "sealed.parquet"))], ignore_index=True)
+    events = pd.read_parquet(os.path.join(args.build_dir, "events_index.parquet"))
     with open(os.path.join(args.build_dir, "universe.jsonl")) as f:
         markets = {m["ticker"]: m for m in map(json.loads, f)}
 

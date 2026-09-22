@@ -24,6 +24,7 @@ pull_news.py           per-market Guardian searches for non-Spring markets
 score_articles.py      FinBERT over every unique article, once
 build_sentiment.py     Spring sentiment features per event
 run_cv.py              walk-forward CV vs baselines / a reference feature set, clustered paired bootstrap
+confirm_sealed.py      score a frozen model on the sealed slice once (dry run by default; logged)
 ```
 
 ```bash
@@ -61,7 +62,7 @@ Each is a test in `tests/`:
 | L8 | Fold-scoped transforms refuse out-of-fold rows |
 | L9 | A strike ladder (event group) never straddles a split |
 | L10 | Training labels end ≥ 4h before validation starts |
-| L11 | `run_cv.py` refuses the sealed slice |
+| L11 | Only `ksearch.eval.sealed.read_sealed` opens the sealed slice, and every read is logged to the committed `data/manifests/sealed_access.jsonl`. `run_cv.py` refuses it; other scripts use a label-free event index |
 | L13 | The raw-data hash manifest detects any change |
 | L14 | The pre-push hook blocks `.env`, `private/`, raw data, and files over 5 MB |
 

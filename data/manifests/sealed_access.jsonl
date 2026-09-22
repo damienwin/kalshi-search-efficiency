@@ -1,0 +1,1 @@
+{"at": "2026-09-21T21:18:00+00:00", "backfilled": true, "commit": "aa7e7a5", "reason": "Read (market_ticker, t0) of sealed events to compute sentiment features. Labels not used, no model fit, no score computed. Superseded by the label-free events_index.parquet.", "script": "build_sentiment.py", "sha256": "22e99576b7fb868b714d668973c32f62ed3075ad083be01eaf6b213fc8658992"}

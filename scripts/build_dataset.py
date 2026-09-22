@@ -4,7 +4,10 @@
 
 Reads   data/build/universe.jsonl, data/raw/kalshi/*/candles/**
 Writes  data/build/dev.parquet          development events (CV only)
-        sealed/sealed.parquet           groups starting in the last time slice, read once
+        sealed/sealed.parquet           groups starting in the last time slice; read only via
+                                        ksearch.eval.sealed.read_sealed (logged)
+        data/build/events_index.parquet every event, dev and sealed, WITHOUT labels or prices:
+                                        what sentiment/news need to know about sealed events
         data/build/attrition.json       per-filter drop counts
         data/manifests/dataset_v1.json  counts + input/output hashes (committed)
 """
@@ -39,6 +42,17 @@ def load_market_candles(market: dict) -> pd.DataFrame:
     for path in sorted(glob.glob(pattern)):
         rows.extend(parse_candles(load_gz(path).get("candlesticks", []), market["_source"]))
     return pd.DataFrame(rows)
+
+
+INDEX_COLUMNS = ["market_ticker", "event_group", "series", "t0"]  # nothing that reveals the outcome
+
+
+def write_events_index(dev: pd.DataFrame, sealed: pd.DataFrame, build_dir: str) -> str:
+    idx = pd.concat([dev[INDEX_COLUMNS].assign(split="dev"), sealed[INDEX_COLUMNS].assign(split="sealed")],
+                    ignore_index=True)
+    path = os.path.join(build_dir, "events_index.parquet")
+    idx.to_parquet(path, index=False)
+    return path
 
 
 def main() -> int:
@@ -82,6 +96,7 @@ def main() -> int:
     sealed_path = os.path.join(args.sealed_dir, "sealed.parquet")
     dev.to_parquet(dev_path, index=False)
     sealed.to_parquet(sealed_path, index=False)
+    write_events_index(dev, sealed, args.build_dir)
 
     attrition["markets_without_candles"] = n_no_candles
     with open(os.path.join(args.build_dir, "attrition.json"), "w") as f:

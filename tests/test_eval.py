@@ -147,3 +147,49 @@ def test_L13_refetch_of_same_response_keeps_hash(tmp_path, monkeypatch):
     c._get_saved("/x", {}, out)
     assert man.sha256_file(out) == first
     assert man.verify([str(tmp_path / "a.jsonl"), str(tmp_path / "b.jsonl")]) == []
+
+
+# ── L11: the sealed slice is only readable through the logged gateway ───────
+def test_L11_only_the_gateway_opens_sealed_parquet():
+    import glob
+    allowed = {"src/ksearch/eval/sealed.py", "scripts/build_dataset.py"}  # reader, writer
+    offenders = []
+    for path in glob.glob(os.path.join(REPO_ROOT, "src", "**", "*.py"), recursive=True) + \
+            glob.glob(os.path.join(REPO_ROOT, "scripts", "*.py")):
+        rel = os.path.relpath(path, REPO_ROOT)
+        if rel not in allowed and "sealed.parquet" in open(path).read():
+            offenders.append(rel)
+    assert offenders == [], f"read sealed data only via ksearch.eval.sealed.read_sealed: {offenders}"
+
+
+def test_L11_read_sealed_requires_reason_and_logs(tmp_path):
+    from ksearch.eval.sealed import access_log, read_sealed
+    p, log = tmp_path / "s.parquet", str(tmp_path / "log.jsonl")
+    ladder_events(5).to_parquet(p)
+    with pytest.raises(ValueError, match="reason"):
+        read_sealed("", str(p), log)
+    assert access_log(log) == []
+    df = read_sealed("unit test of the sealed gateway", str(p), log, purpose="test")
+    (entry,) = access_log(log)
+    assert len(df) and entry["purpose"] == "test" and len(entry["sha256"]) == 64
+
+
+def test_L11_confirm_sealed_dry_run_reads_nothing(tmp_path, monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("confirm_sealed", os.path.join(REPO_ROOT, "scripts", "confirm_sealed.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    log = str(tmp_path / "log.jsonl")
+    missing = str(tmp_path / "does_not_exist.parquet")
+    assert mod.main(["--features", "price", "--reason", "dry run test here",
+                     "--sealed-path", missing, "--log", log]) == 0
+    assert not os.path.exists(log)
+
+
+def test_events_index_carries_no_outcome_columns():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("build_dataset", os.path.join(REPO_ROOT, "scripts", "build_dataset.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    leaky = {"label", "dmid", "mid_end", "spread_end", "t_end", "quote_age_end_h"}
+    assert not leaky & set(mod.INDEX_COLUMNS)
