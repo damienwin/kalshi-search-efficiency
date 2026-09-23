@@ -239,18 +239,22 @@ def main() -> int:
     story = [Spacer(1, 1.6 * inch), Paragraph(args.title, S["title"]), Spacer(1, 6),
              Paragraph(args.subtitle, S["subtitle"]), Spacer(1, 10),
              HRFlowable(width="100%", thickness=1, color=ACCENT), Spacer(1, 14)]
-    contents = [("Progress report 1", args.files[0])] + [(None, f) for f in args.files[1:]]
-    story.append(Paragraph("Contents", S["h3"]))
-    names = []
-    for f in args.files:
-        first = next((l for l in open(f) if l.startswith("# ")), os.path.basename(f))
-        names.append(first.lstrip("# ").strip())
-    story.append(ListFlowable([ListItem(Paragraph(n, S["body"]), leftIndent=14) for n in names],
-                              bulletType="1", bulletFontSize=7, leftIndent=14))
+    if len(args.files) > 1:
+        story.append(Paragraph("Contents", S["h3"]))
+        names = []
+        for f in args.files:
+            first = next((l for l in open(f) if l.startswith("# ")), os.path.basename(f))
+            names.append(first.lstrip("# ").strip())
+        story.append(ListFlowable([ListItem(Paragraph(n, S["body"]), leftIndent=14) for n in names],
+                                  bulletType="1", bulletFontSize=7, leftIndent=14))
     story.append(PageBreak())
 
     for n, f in enumerate(args.files):
-        story += render(open(f).read(), width)
+        text = open(f).read()
+        if len(args.files) == 1:
+            # Title page already carries the doc title; drop the redundant leading H1.
+            text = re.sub(r"^#\s+.+\n+", "", text, count=1)
+        story += render(text, width)
         if n < len(args.files) - 1:
             story.append(PageBreak())
 
