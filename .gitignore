@@ -21,3 +21,6 @@ catboost_info/
 .vscode/
 .idea/
 .claude/
+
+# Search runs: per-event dev predictions (labels, tickers) stay local
+runs/

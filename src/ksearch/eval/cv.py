@@ -26,25 +26,32 @@ def macro_f1(y_true, y_pred) -> float:
 
 
 # ── baselines ────────────────────────────────────────────────────────────────
-def majority(train: pd.DataFrame, val: pd.DataFrame) -> np.ndarray:
+def majority(train: pd.DataFrame, val: pd.DataFrame, rng=None) -> np.ndarray:
     return np.full(len(val), train["label"].mode().iloc[0], dtype=object)
 
 
-def no_change(train: pd.DataFrame, val: pd.DataFrame) -> np.ndarray:
+def no_change(train: pd.DataFrame, val: pd.DataFrame, rng=None) -> np.ndarray:
     return np.full(len(val), "FLAT", dtype=object)
 
 
-def momentum(train: pd.DataFrame, val: pd.DataFrame) -> np.ndarray:
+def momentum(train: pd.DataFrame, val: pd.DataFrame, rng=None) -> np.ndarray:
     """Same-market previous label, only if it resolved by t0; else train majority."""
     fallback = train["label"].mode().iloc[0]
     return val["prev_label"].map(PREV_TO_LABEL).fillna(fallback).to_numpy(dtype=object)
 
 
-BASELINES = {"majority": majority, "no_change": no_change, "momentum": momentum}
+def random_prior(train: pd.DataFrame, val: pd.DataFrame, rng=None) -> np.ndarray:
+    """Random guess at the training fold's class rates (never the validation rates)."""
+    prior = train["label"].value_counts(normalize=True).reindex(LABELS, fill_value=0.0)
+    return rng.choice(np.array(LABELS, dtype=object), size=len(val), p=prior.to_numpy())
+
+
+BASELINES = {"majority": majority, "no_change": no_change, "momentum": momentum,
+             "random": random_prior}
 
 
 # ── model ────────────────────────────────────────────────────────────────────
-def fit_predict_xgb(train, val, features, params) -> tuple[np.ndarray, np.ndarray]:
+def fit_xgb(train, features, params) -> XGBClassifier:
     y = train["label"].map({l: i for i, l in enumerate(LABELS)}).to_numpy()
     clf = XGBClassifier(objective="multi:softprob", num_class=3, eval_metric="mlogloss",
                         n_estimators=params["n_estimators"], max_depth=params["max_depth"],
@@ -53,8 +60,16 @@ def fit_predict_xgb(train, val, features, params) -> tuple[np.ndarray, np.ndarra
                         min_child_weight=params["min_child_weight"], random_state=params["seed"],
                         verbosity=0)
     clf.fit(train[features], y, sample_weight=compute_sample_weight("balanced", y))
+    return clf
+
+
+def predict_proba(clf, val, features) -> np.ndarray:
     proba = clf.predict_proba(val[features]).astype(float)
-    proba /= proba.sum(axis=1, keepdims=True)  # float32 softmax drifts off 1
+    return proba / proba.sum(axis=1, keepdims=True)  # float32 softmax drifts off 1
+
+
+def fit_predict_xgb(train, val, features, params) -> tuple[np.ndarray, np.ndarray]:
+    proba = predict_proba(fit_xgb(train, features, params), val, features)
     return np.array(LABELS, dtype=object)[proba.argmax(1)], proba
 
 
@@ -119,6 +134,7 @@ def run_cv(events: pd.DataFrame, features: list[str], cv_cfg: dict, clf_params: 
     proba = np.full((len(events), 3), np.nan)
     in_val = np.zeros(len(events), dtype=bool)
     per_fold = []
+    rng = np.random.default_rng(clf_params["seed"])  # random baseline draws, in fold order
     for f in folds:
         tr, va = events.iloc[f.train], events.iloc[f.val]
         preds = {"model": None}
@@ -126,7 +142,7 @@ def run_cv(events: pd.DataFrame, features: list[str], cv_cfg: dict, clf_params: 
         for n, feats in refs.items():
             preds[n], _ = fit_predict_xgb(tr, va, feats, clf_params)
         for n, fn in BASELINES.items():
-            preds[n] = fn(tr, va)
+            preds[n] = fn(tr, va, rng)
         for n in names:
             oof[n][f.val] = preds[n]
         proba[f.val] = p

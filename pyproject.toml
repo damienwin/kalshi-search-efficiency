@@ -14,6 +14,7 @@ dependencies = [
 
 [project.optional-dependencies]
 sentiment = ["transformers>=4.40", "torch>=2.2", "beautifulsoup4>=4.12", "lxml>=5.0", "ijson>=3.2"]
+search = ["optuna>=5.0", "anthropic>=1.11"]  # tested with these; older SDKs lack output_config
 dev = ["pytest>=8.0"]
 docs = ["reportlab>=4.1", "markdown-it-py>=3.0"]
 

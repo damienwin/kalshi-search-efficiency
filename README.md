@@ -10,7 +10,9 @@ It starts from corrected labels and a leakage-tested pipeline. See
 [docs/SPRING_ARTIFACT.md](docs/SPRING_ARTIFACT.md) for what was wrong before and why.
 
 **Status (Sep 2026):** dataset `data-v1` (766 markets, 21,587 events), price
-and sentiment features, and walk-forward CV are in place. Search arms come next.
+and sentiment features, and walk-forward CV are in place. **Oct 2026:** the
+feature search (shared grammar, five arms, significance gate, loop) is built and
+tested; no search has been run yet.
 See [docs/reports/progress_1.md](docs/reports/progress_1.md) for results.
 
 ## Pipeline
@@ -25,6 +27,7 @@ score_articles.py      FinBERT over every unique article, once
 build_sentiment.py     Spring sentiment features per event
 run_cv.py              walk-forward CV vs baselines / a reference feature set, clustered paired bootstrap
 confirm_sealed.py      score a frozen model on the sealed slice once (dry run by default; logged)
+run_search.py          one feature search: --arm {random,tpe,llm_full,llm_no_history,llm_blind} --seed K
 ```
 
 ```bash
@@ -75,6 +78,7 @@ early read makes them fail.
 src/ksearch/data/      kalshi client, parsers, point-in-time grid, labels, manifest
 src/ksearch/features/  price-derived features (sentiment port next)
 src/ksearch/eval/      folds, baselines, CV + inference
+src/ksearch/search/    feature grammar, significance gate, search loop, arms/
 scripts/               pull, build, cv
 data/manifests/        committed hashes and dataset summaries (raw data is not committed)
 docs/                  data card, plans, Spring artifact, progress reports

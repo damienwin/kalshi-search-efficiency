@@ -33,3 +33,32 @@ classifier:
 news:
   lookback_h: 6                # Spring: articles in [t0 - 6h, t0)
   daily_cap: 450               # per Guardian key (free tier is 500/day)
+
+search:                        # scripts/run_search.py; identical for every arm (src/ksearch/search/loop.py)
+  budget: 100                  # trials per (arm, seed) run; failed and duplicate trials count
+  n_seeds: 5                   # XGBoost training seeds per model; out-of-fold probabilities averaged
+  train_seeds: null            # null -> [0, ..., n_seeds - 1]. Same list for every arm and run seed,
+                               # so a verdict depends only on (reference, candidate); the run seed seeds the arm
+  max_depth: 3                 # grammar: nested operators per candidate
+  base_columns: null           # null -> grammar DEFAULT_COLUMNS (price features minus hours_to_close, L7);
+                               # both the reference model's columns and the grammar's leaves
+  grammar:                     # passed to every arm AND to the loop's parse/evaluate, so they cannot disagree
+    include_cross: false       # cross-sectional operators are a look-ahead (grammar.CROSS_EXCLUDED_REASON)
+  min_valid: 100               # degenerate_reason: non-NaN training rows needed in every fold
+  alpha: 0.05                  # one-sided Diebold-Mariano level (gate.evaluate_candidate)
+  n_placebos: 19               # per DM-passing candidate; 0 = off, else >= 19 (fewer gives threshold +inf)
+  placebo_min_shift: 6         # placebo_shift offset floor, in a market's events (6 events >= 1 day)
+  placebo_seed: 0              # placebo rng = (placebo_seed, candidate key, j): same verdict in every arm
+  gate:                        # passed to evaluate_candidate (except run_placebos)
+    run_placebos: true         # placebo threshold for DM passers (week-3 step 4)
+    require_signflip: false    # reported, not required
+    require_f1: false          # macro F1 bootstrap reported, not required
+    block_hours: 24            # DM calendar blocks
+    cluster_groups: true       # two-way (event group x calendar) variance
+    n_perm: 4999
+    n_boot: 2000
+  llm:                         # read by the LLM arms (arms/llm.py load_settings); the loop does not use it
+    model: claude-opus-5-5
+    effort: high
+    max_tokens: 16000
+    max_repairs: 2             # re-asks after a SpecError; do not consume trial budget
