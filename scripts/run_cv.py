@@ -38,6 +38,19 @@ def main() -> int:
                     help="also fit this feature set on the same folds and test model vs reference")
     ap.add_argument("--news-only", action="store_true",
                     help="restrict to events with >= 2 articles (the Spring inclusion rule)")
+    ap.add_argument("--scope", choices=["all", "spring", "current"], default="all",
+                    help="spring = the 304 Spring markets, current = post-Spring markets only")
+    ap.add_argument("--seed", type=int, default=None, help="override classifier.seed (model + random baseline)")
+    ap.add_argument("--sentiment-file", default="sentiment.parquet",
+                    help="sentiment parquet next to --data (e.g. sentiment_rel.parquet, topic-filtered)")
+    ap.add_argument("--model", choices=["3class", "two_stage", "flip_penalty"], default="3class",
+                    help="ksearch.model.direction; two_stage uses the classifier hyperparameters for both stages")
+    ap.add_argument("--flip-lambda", type=float, default=1.0,
+                    help="flip_penalty: weight on P(opposite direction) added to the log loss")
+    ap.add_argument("--weights", choices=["balanced", "none"], default="balanced",
+                    help="training sample weights for every model stage")
+    ap.add_argument("--flip-cost", type=float, default=1.0,
+                    help="cost of a flip relative to any other error in the call; 1 = argmax")
     ap.add_argument("--out", default=os.path.join(REPO_ROOT, "results", "cv_price_v1.json"))
     args = ap.parse_args()
     guard_not_sealed(args.data)
@@ -51,15 +64,26 @@ def main() -> int:
     reference = sets[args.reference] if args.reference else None
     events = pd.read_parquet(args.data)
     if "sentiment" in args.features or (args.reference and "sentiment" in args.reference) or args.news_only:
-        sent = pd.read_parquet(os.path.join(os.path.dirname(args.data), "sentiment.parquet"))
+        sent = pd.read_parquet(os.path.join(os.path.dirname(args.data), args.sentiment_file))
         events = events.merge(sent, on=["market_ticker", "t0"], how="left", validate="one_to_one")
         if args.news_only:
             events = events[events["n_articles"] >= 2]
+    if args.scope != "all":
+        with open(os.path.join(os.path.dirname(args.data), "universe.jsonl")) as f:
+            scope = {m["ticker"]: m.get("_scope") for m in map(json.loads, f)}
+        want = "spring" if args.scope == "spring" else "sample"
+        events = events[events["market_ticker"].map(scope) == want]
+    if args.seed is not None:
+        cfg["classifier"]["seed"] = args.seed
     events = events.sort_values(["t0", "market_ticker"], kind="mergesort")
     events = events.reset_index(drop=True)
 
-    res = run_cv(events, features, cfg["cv"], cfg["classifier"], reference)
+    model = {"kind": args.model, "flip_cost": args.flip_cost, "weights": args.weights}
+    if args.model == "flip_penalty":
+        model["lam"] = args.flip_lambda
+    res = run_cv(events, features, cfg["cv"], cfg["classifier"], reference, model)
     res["feature_set"], res["reference_set"], res["news_only"] = args.features, args.reference, args.news_only
+    res["scope"], res["seed"] = args.scope, cfg["classifier"]["seed"]
     res["data_sha256"] = sha256_file(args.data)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w") as f:
@@ -70,6 +94,9 @@ def main() -> int:
     for name, v in res["pooled_macro_f1"].items():
         print(f"  macro F1  {name:<10} {v:.4f}")
     print(f"  log loss  model      {res['pooled_logloss_model']:.4f}")
+    d = res["direction_breakdown_model"]
+    print(f"  move AUC {d['move_auc']:.3f}  direction AUC {d['dir_auc']:.3f}  flips {d['flips']}"
+          f"  right direction {d['right_direction']}  false moves {d['false_moves']}")
     for name, c in res["comparisons"].items():
         print(f"  {name:<22} delta {c['delta']:+.4f}  95% CI [{c['ci95'][0]:+.4f}, {c['ci95'][1]:+.4f}]"
               f"  {'SIGNIFICANT' if c['excludes_zero'] else 'n.s.'}  ({c['n_groups']} groups)")

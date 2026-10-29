@@ -4,8 +4,9 @@
         docs/reports/progress_1.md docs/DATA_CARD.md docs/SPRING_ARTIFACT.md
 
 Supports the subset this repo's docs use: headings, paragraphs, bullet and
-numbered lists, tables, fenced code, blockquotes, rules, and inline
-bold/italic/code/links.
+numbered lists, tables, fenced code, blockquotes, rules, inline
+bold/italic/code/links, and images alone in a paragraph (scaled to the text width,
+paths relative to the Markdown file).
 """
 
 import argparse
@@ -22,7 +23,8 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import (BaseDocTemplate, Frame, HRFlowable, KeepTogether, ListFlowable,
-                                ListItem, PageBreak, PageTemplate, Paragraph, Preformatted, Spacer, Table, TableStyle)
+                                Image, ListItem, PageBreak, PageTemplate, Paragraph, Preformatted, Spacer, Table,
+                                TableStyle)
 
 INK = colors.HexColor("#1B2733")
 ACCENT = colors.HexColor("#116B71")
@@ -134,7 +136,15 @@ def match_close(tokens, i: int) -> int:
     return len(tokens) - 1
 
 
-def render_tokens(tokens, width: float, quote: bool = False) -> list:
+def image_flowable(src: str, width: float, base: str):
+    img = Image(os.path.join(base, src))
+    scale = min(1.0, width / img.imageWidth)
+    img.drawWidth, img.drawHeight = img.imageWidth * scale, img.imageHeight * scale
+    img.hAlign = "LEFT"
+    return img
+
+
+def render_tokens(tokens, width: float, quote: bool = False, base: str = ".") -> list:
     flow, i = [], 0
     list_stack = ["quote"] if quote else []
     while i < len(tokens):
@@ -147,6 +157,11 @@ def render_tokens(tokens, width: float, quote: bool = False) -> list:
             i += 3
             continue
         if t.type == "paragraph_open":
+            kids = [c for c in tokens[i + 1].children or [] if c.type != "softbreak"]
+            if len(kids) == 1 and kids[0].type == "image":
+                flow += [image_flowable(dict(kids[0].attrs)["src"], width, base), Spacer(1, 8)]
+                i += 3
+                continue
             text = inline(tokens[i + 1].children or [])
             style = S["quote"] if list_stack and list_stack[-1] == "quote" else S["body"]
             flow.append(Paragraph(text, style))
@@ -158,7 +173,7 @@ def render_tokens(tokens, width: float, quote: bool = False) -> list:
             while j < end:
                 if tokens[j].type == "list_item_open":
                     item_end = match_close(tokens, j)
-                    inner = render_tokens(tokens[j + 1:item_end], width - 14)
+                    inner = render_tokens(tokens[j + 1:item_end], width - 14, base=base)
                     items.append(ListItem(inner or [Spacer(1, 1)], leftIndent=14))
                     j = item_end + 1
                     continue
@@ -194,15 +209,15 @@ def render_tokens(tokens, width: float, quote: bool = False) -> list:
             flow.append(HRFlowable(width="100%", thickness=0.5, color=RULE, spaceBefore=6, spaceAfter=8))
         elif t.type == "blockquote_open":
             end = match_close(tokens, i)
-            flow += render_tokens(tokens[i + 1:end], width, quote=True)
+            flow += render_tokens(tokens[i + 1:end], width, quote=True, base=base)
             i = end + 1
             continue
         i += 1
     return flow
 
 
-def render(md_text: str, width: float) -> list:
-    return render_tokens(MarkdownIt("commonmark").enable("table").parse(md_text), width)
+def render(md_text: str, width: float, base: str = ".") -> list:
+    return render_tokens(MarkdownIt("commonmark").enable("table").parse(md_text), width, base=base)
 
 
 def main() -> int:
@@ -254,7 +269,7 @@ def main() -> int:
         if len(args.files) == 1:
             # Title page already carries the doc title; drop the redundant leading H1.
             text = re.sub(r"^#\s+.+\n+", "", text, count=1)
-        story += render(text, width)
+        story += render(text, width, os.path.dirname(os.path.abspath(f)))
         if n < len(args.files) - 1:
             story.append(PageBreak())
 
