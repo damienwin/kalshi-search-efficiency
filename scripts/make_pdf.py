@@ -154,6 +154,8 @@ def render_tokens(tokens, width: float, quote: bool = False, base: str = ".") ->
             flow.append(Paragraph(text, S.get(t.tag, S["h3"])))
             if t.tag == "h2":
                 flow.append(HRFlowable(width="100%", thickness=0.5, color=RULE, spaceAfter=6))
+            for f in flow[-2 if t.tag == "h2" else -1:]:
+                f.keepWithNext = 1  # never leave a heading at the bottom of a page
             i += 3
             continue
         if t.type == "paragraph_open":
