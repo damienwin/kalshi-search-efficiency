@@ -24,3 +24,6 @@ catboost_info/
 
 # Search runs: per-event dev predictions (labels, tickers) stay local
 runs/
+
+# rendered reports stay local
+docs/reports/*.pdf
