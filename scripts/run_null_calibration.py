@@ -57,9 +57,23 @@ def probe_column(i: int, ev, seed: int) -> tuple[str, str, np.ndarray]:
     return "shuffle", col, out
 
 
-def run_probe(ev, i: int, seed: int) -> dict:
+STRENGTHS = (0.05, 0.1, 0.2, 0.4)
+
+
+def signal_column(i: int, ev, seed: int) -> tuple[str, str, np.ndarray]:
+    """Positive control: label-derived signal at a known strength plus N(0,1) noise.
+    Even ids carry |move| (label != FLAT), odd ids carry direction (UP +1, DOWN -1, FLAT 0).
+    Synthetic, uses the label on purpose: it only asks whether the gate CAN accept."""
+    rng = np.random.default_rng([seed, 991, i])
+    lab = ev.events["label"].to_numpy(dtype=object)
+    s = STRENGTHS[(i // 2) % len(STRENGTHS)]
+    sig = (lab != "FLAT").astype(float) if i % 2 == 0 else np.where(lab == "UP", 1.0, np.where(lab == "DOWN", -1.0, 0.0))
+    return ("signal_move" if i % 2 == 0 else "signal_dir"), f"s={s}", s * sig + rng.standard_normal(len(lab))
+
+
+def run_probe(ev, i: int, seed: int, control: bool = False) -> dict:
     from ksearch.search.gate import loss_gain, placebo_shift
-    kind, desc, col = probe_column(i, ev, seed)
+    kind, desc, col = (signal_column if control else probe_column)(i, ev, seed)
     t = time.perf_counter()
     f0 = ev.n_fits
     ref = ev.reference([])
@@ -95,7 +109,7 @@ def cmd_run(a) -> int:
     folds = make_folds(events, cfg)
     ev = make_evaluator(events, cfg, folds)
     shard, nshard = (int(x) for x in a.shard.split("/"))
-    path = os.path.join(out, f"probes_{shard}of{nshard}.jsonl")
+    path = os.path.join(out, f"{'control' if a.control else 'probes'}_{shard}of{nshard}.jsonl")
     done = set()
     if os.path.exists(path):
         done = {json.loads(l)["id"] for l in open(path) if l.strip()}
@@ -111,7 +125,7 @@ def cmd_run(a) -> int:
     print(f"reference fitted in {time.perf_counter() - t_all:.1f}s ({ev.n_fits} fits)", flush=True)
     with open(path, "a") as log:
         for k, i in enumerate(todo):
-            r = run_probe(ev, i, a.seed)
+            r = run_probe(ev, i, a.seed, a.control)
             log.write(json.dumps(r) + "\n")
             log.flush()
             if k % 10 == 0:
@@ -133,14 +147,14 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
 def cmd_summary(a) -> int:
     rows = []
     for fn in sorted(os.listdir(a.out)):
-        if fn.startswith("probes_") and fn.endswith(".jsonl"):
+        if fn.startswith("control_" if a.control else "probes_") and fn.endswith(".jsonl"):
             rows += [json.loads(l) for l in open(os.path.join(a.out, fn)) if l.strip()]
     if not rows:
         print("no probes")
         return 1
     rng = np.random.default_rng(0)
     res = {}
-    for kind in ("all", "noise", "shuffle"):
+    for kind in (("all", "signal_move", "signal_dir") if a.control else ("all", "noise", "shuffle")):
         r = [x for x in rows if kind == "all" or x["kind"] == kind]
         n = len(r)
         g = np.array([x["gain"] for x in r])
@@ -160,7 +174,12 @@ def cmd_summary(a) -> int:
             "frac_gain_gt_0.005": gain_gt / n,
             "p_any_gate_accept_in_search": float(1 - (1 - acc / n) ** a.search_n),
         }
-    with open(os.path.join(a.out, "summary.json"), "w") as f:
+    if a.control:
+        for st in STRENGTHS:
+            r = [x for x in rows if x["desc"] == f"s={st}"]
+            print(f"  s={st}: n={len(r)} gate accept {sum(bool(x['accept']) for x in r)}  "
+                  f"DM p<0.05 {sum(x['dm_p'] < 0.05 for x in r)}  mean gain {np.mean([x['gain'] for x in r]):+.5f}")
+    with open(os.path.join(a.out, "control_summary.json" if a.control else "summary.json"), "w") as f:
         json.dump(res, f, indent=2)
     for kind, s in res.items():
         print(f"[{kind}] n={s['n']}  {s['wall_s_mean']:.1f}s/probe")
@@ -179,6 +198,7 @@ def main() -> int:
     ap.add_argument("cmd", choices=["run", "summary"])
     ap.add_argument("--n", type=int, default=1000, help="probes (alternating noise / shuffle)")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--control", action="store_true", help="positive control: label-derived signal probes")
     ap.add_argument("--shard", default="0/1", help="i/k: run probes with id %% k == i")
     ap.add_argument("--search-n", type=int, default=100, help="trials per search, for the max-of-N threshold")
     ap.add_argument("--data", default=os.path.join(REPO_ROOT, "data", "build", "v2", "dev.parquet"))
