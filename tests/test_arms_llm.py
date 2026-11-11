@@ -10,7 +10,7 @@ import pytest
 from ksearch.search import parse
 from ksearch.search.arms.base import Proposal, SearchState, TrialOutcome
 from ksearch.search.arms.llm import (
-    MODES, AnthropicClient, FakeClient, LLMArm, LLMConfigError, ReplayClient, ReplayMismatch,
+    MODES, AnthropicClient, Completion, FakeClient, LLMArm, LLMConfigError, ReplayClient, ReplayMismatch,
     read_transcript, scrub, system_prompt, user_prompt, write_transcript,
 )
 from ksearch.search.grammar import DEFAULT_COLUMNS, DEFAULT_MAX_DEPTH
@@ -327,3 +327,25 @@ def test_absurdly_nested_answer_is_repaired_not_a_crash():
     from ksearch.search import SpecError
     with pytest.raises(SpecError):
         parse(deep)
+
+
+# ── transient API refusals ───────────────────────────────────────────────────
+REFUSAL = Completion(text=None, usage={"input_tokens": 5}, stop_reason="refusal", model="fake")
+
+
+def test_transient_refusal_is_resent_unchanged_and_costs_no_repair(monkeypatch):
+    monkeypatch.setattr("ksearch.search.arms.llm.time.sleep", lambda s: None)
+    a = arm("full", [REFUSAL, REFUSAL, answer(VALID[0], "ok")], max_repairs=0)
+    p = a.propose(state())
+    assert p.meta["valid"] and p.meta["repairs"] == 0 and p.meta["refusals"] == 2
+    assert p.spec_json == VALID[0] and len(a.client.requests) == 3
+    msgs = [r["messages"][0]["content"] for r in a.client.requests]
+    assert msgs[0] == msgs[1] == msgs[2]  # resent as is, not a repair prompt
+
+
+def test_persistent_refusal_becomes_a_failed_proposal(monkeypatch):
+    monkeypatch.setattr("ksearch.search.arms.llm.time.sleep", lambda s: None)
+    a = arm("full", [REFUSAL] * 5, max_repairs=0, max_refusal_retries=4)
+    p = a.propose(state())
+    assert not p.meta["valid"] and p.meta["refusals"] == 5 and len(a.client.requests) == 5
+    assert "stop_reason=refusal" in p.meta["errors"][0]

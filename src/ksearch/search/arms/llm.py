@@ -95,6 +95,7 @@ DEFAULTS = {
     "max_tokens": 16000,      # non-streaming ceiling; thinking shares it
     "effort": "high",         # hypothesis generation is reasoning-sensitive
     "temperature": None,      # None = not sent (Opus 5.5 returns 400 on it)
+    "max_refusal_retries": 4, # resends of an unchanged request after an empty refusal; 0 = off
     "max_repairs": 2,         # re-asks after a SpecError; 3 calls per trial at most
     "history_cap": 250,       # > planned budget of 200, so never binds in the study
 }
@@ -542,6 +543,7 @@ class LLMArm(Arm):
     def __init__(self, seed: int, mode: str = "full", client: LLMClient | None = None,
                  model: str | None = None, max_tokens: int | None = None, effort: str | None = None,
                  temperature: float | None = None, max_repairs: int | None = None,
+                 max_refusal_retries: int | None = None,
                  history_cap: int | None = None, settings_path: str | Path | None = None,
                  **grammar_kwargs: Any):
         super().__init__(seed)
@@ -555,6 +557,7 @@ class LLMArm(Arm):
         self.effort = pick(effort, "effort")
         self.temperature = pick(temperature, "temperature")
         self.max_repairs = int(pick(max_repairs, "max_repairs"))
+        self.max_refusal_retries = int(pick(max_refusal_retries, "max_refusal_retries"))
         self.history_cap = int(pick(history_cap, "history_cap"))
         self.grammar_kwargs = grammar_kwargs   # forwarded to parse/catalog (e.g. include_cross)
         self.client: LLMClient = client if client is not None else AnthropicClient()
@@ -582,7 +585,8 @@ class LLMArm(Arm):
         failures: list[tuple[str, str]] = []
         calls: list[dict] = []
         rationale, spec_out, valid = "", "", False
-        for attempt in range(self.max_repairs + 1):
+        attempt = refusals = 0
+        while attempt <= self.max_repairs:
             rationale = ""
             content = user if not failures else repair_prompt(user, failures)
             messages = [{"role": "user", "content": content}]
@@ -592,6 +596,14 @@ class LLMArm(Arm):
                      "response": c.to_dict()}
             self.transcript.append(entry)
             calls.append(entry)
+            if c.stop_reason == "refusal" and refusals < self.max_refusal_retries:
+                # Empty API-side refusals are transient (the smoke test's refused requests all
+                # succeeded when replayed unchanged), so resend the same message; this is neither
+                # a repair nor a bad proposal and costs no repair or trial budget.
+                refusals += 1
+                time.sleep(min(2.0 * refusals, 8.0))
+                continue
+            attempt += 1
             try:
                 rationale, spec, raw = _read_answer(c)
                 spec_out = spec
@@ -606,7 +618,8 @@ class LLMArm(Arm):
         for e in calls:
             usage.update({k: v or 0 for k, v in e["response"]["usage"].items()})
         meta = {"arm": self.name, "mode": self.mode, "model": self.model, "seed": self.seed,
-                "valid": valid, "repairs": len(calls) - 1, "errors": [err for _, err in failures],
+                "valid": valid, "repairs": attempt - 1 if attempt else 0, "refusals": sum(
+                    e["response"]["stop_reason"] == "refusal" for e in calls), "errors": [err for _, err in failures],
                 "usage": dict(usage), "latency_s": round(sum(e["response"]["latency_s"] for e in calls), 3),
                 "served_models": sorted({e["response"]["model"] or "" for e in calls}), "calls": calls}
         return Proposal(spec_json=spec_out, rationale=rationale, meta=meta)
