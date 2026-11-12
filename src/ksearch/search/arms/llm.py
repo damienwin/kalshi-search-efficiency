@@ -95,7 +95,8 @@ DEFAULTS = {
     "max_tokens": 16000,      # non-streaming ceiling; thinking shares it
     "effort": "high",         # hypothesis generation is reasoning-sensitive
     "temperature": None,      # None = not sent (Opus 5.5 returns 400 on it)
-    "max_refusal_retries": 4, # resends of an unchanged request after an empty refusal; 0 = off
+    "max_refusal_retries": 20, # resends of an unchanged request after an empty refusal (backoff 2s doubling,
+                               # capped at 120s: ~30 min in all); then the run stops (ProposerUnavailable); 0 = off
     "max_repairs": 2,         # re-asks after a SpecError; 3 calls per trial at most
     "history_cap": 250,       # > planned budget of 200, so never binds in the study
 }
@@ -374,6 +375,11 @@ class LLMClient(Protocol):
     def complete(self, system: str, messages: list[dict], **params: Any) -> Completion: ...
 
 
+class ProposerUnavailable(RuntimeError):
+    """The API kept refusing an unchanged, benign request. Raised instead of logging a failed
+    trial, so an outage on the provider's side is never charged to the arm's trial budget."""
+
+
 class LLMConfigError(RuntimeError):
     """No usable credentials; raised only when a real call is attempted."""
 
@@ -596,13 +602,19 @@ class LLMArm(Arm):
                      "response": c.to_dict()}
             self.transcript.append(entry)
             calls.append(entry)
-            if c.stop_reason == "refusal" and refusals < self.max_refusal_retries:
-                # Empty API-side refusals are transient (the smoke test's refused requests all
-                # succeeded when replayed unchanged), so resend the same message; this is neither
-                # a repair nor a bad proposal and costs no repair or trial budget.
+            if c.stop_reason == "refusal" and self.max_refusal_retries:
+                # Empty API-side refusals come in bursts and are not tied to the request (smoke
+                # tests: refused requests succeeded when replayed unchanged minutes later, on two
+                # models), so resend the same message with backoff; this is neither a repair nor a
+                # bad proposal and costs no repair or trial budget. A burst that outlasts the
+                # retries stops the run rather than charging the arm a failed trial.
+                if refusals >= self.max_refusal_retries:
+                    raise ProposerUnavailable(
+                        f"trial {state.trial}: {refusals + 1} consecutive refusals of an unchanged request")
                 refusals += 1
-                time.sleep(min(2.0 * refusals, 8.0))
+                time.sleep(min(2.0 ** refusals, 120.0))
                 continue
+            refusals = 0
             attempt += 1
             try:
                 rationale, spec, raw = _read_answer(c)

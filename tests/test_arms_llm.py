@@ -343,9 +343,19 @@ def test_transient_refusal_is_resent_unchanged_and_costs_no_repair(monkeypatch):
     assert msgs[0] == msgs[1] == msgs[2]  # resent as is, not a repair prompt
 
 
-def test_persistent_refusal_becomes_a_failed_proposal(monkeypatch):
-    monkeypatch.setattr("ksearch.search.arms.llm.time.sleep", lambda s: None)
+def test_persistent_refusal_stops_the_run_instead_of_failing_the_trial(monkeypatch):
+    import pytest
+    from ksearch.search.arms.llm import ProposerUnavailable
+    waits = []
+    monkeypatch.setattr("ksearch.search.arms.llm.time.sleep", waits.append)
     a = arm("full", [REFUSAL] * 5, max_repairs=0, max_refusal_retries=4)
+    with pytest.raises(ProposerUnavailable):
+        a.propose(state())
+    assert len(a.client.requests) == 5 and waits == [2.0, 4.0, 8.0, 16.0]
+
+
+def test_refusals_off_logs_a_failed_proposal(monkeypatch):
+    a = arm("full", [REFUSAL], max_repairs=0, max_refusal_retries=0)
     p = a.propose(state())
-    assert not p.meta["valid"] and p.meta["refusals"] == 5 and len(a.client.requests) == 5
+    assert not p.meta["valid"] and p.meta["refusals"] == 1
     assert "stop_reason=refusal" in p.meta["errors"][0]
