@@ -587,7 +587,10 @@ class LLMArm(Arm):
 
     def propose(self, state: SearchState) -> Proposal:
         system, user = self.build_prompt(state)
-        params = self.request_params()
+        # Send exactly what the transcript records (_norm sorts keys). The API's refusal
+        # behaviour depends on key order: OUTPUT_SCHEMA in source order ("type" first) was
+        # refused nearly every time while the sorted form, as logged and replayed, was not.
+        params = _norm(self.request_params())
         failures: list[tuple[str, str]] = []
         calls: list[dict] = []
         rationale, spec_out, valid = "", "", False

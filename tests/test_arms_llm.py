@@ -359,3 +359,16 @@ def test_refusals_off_logs_a_failed_proposal(monkeypatch):
     p = a.propose(state())
     assert not p.meta["valid"] and p.meta["refusals"] == 1
     assert "stop_reason=refusal" in p.meta["errors"][0]
+
+
+def test_request_sent_is_byte_identical_to_the_logged_request():
+    # The API refused OUTPUT_SCHEMA in source key order but not in the sorted, logged order,
+    # so the live request must be the normalized one (key order included), not just equal.
+    import json
+    a = arm("full", [answer(VALID[0])])
+    a.propose(state())
+    sent = a.client.requests[0]
+    logged = a.transcript[0]["request"]
+    for k in ("output_config", "thinking"):
+        assert json.dumps(sent[k]) == json.dumps(logged[k])
+    assert list(sent["output_config"]["format"]["schema"]) == sorted(sent["output_config"]["format"]["schema"])
