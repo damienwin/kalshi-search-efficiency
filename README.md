@@ -13,7 +13,7 @@ It starts from corrected labels and a leakage-tested pipeline. See
 have finished on the dev set, 5 seeds × 100 trials each, on dataset v2
 (`data/build/v2/dev.parquet`, 19,867 dev events; 2,048 sealed, not yet scored).
 The null calibration is done. Still open: one sealed opening for all arms, the
-contamination split, and the paper (`paper/`).
+contamination split, and the paper (kept outside this repository, on Overleaf).
 
 **Continuing this work?** Start with [docs/HANDOFF.md](docs/HANDOFF.md) (setup,
 every step, sealed-slice rules, open items), then
@@ -49,7 +49,6 @@ git config core.hooksPath .githooks        # pre-push guard against secrets/PII/
 .venv/bin/python -m ksearch.data.manifest verify      # raw data unchanged since pull
 .venv/bin/python -m pytest
 .venv/bin/python scripts/run_search.py --arm random --seed 0 --dry-run
-tectonic paper/main.tex
 ```
 
 ## What the label means
@@ -93,6 +92,6 @@ src/ksearch/search/    feature grammar, significance gate, search loop, arms/
 scripts/               pull, build, cv, search, calibration, summaries, paper tables/figures
 data/manifests/        committed hashes and dataset summaries (raw data is not committed)
 runs/                  search runs and calibration output (local only, gitignored)
-paper/                 LaTeX source; build with `tectonic paper/main.tex`
+paper/                 paper draft (local only, gitignored; on Overleaf)
 docs/                  data card, Spring artifact, HANDOFF, PROVENANCE, reports/ (local drafts)
 ```
