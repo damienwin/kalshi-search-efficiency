@@ -106,9 +106,14 @@ def table_flowable(rows, width):
     ncols = len(head)
     data = [[Paragraph(c, S["cellhead"]) for c in head]]
     data += [[Paragraph(c, S["cell"]) for c in r] + [Paragraph("", S["cell"])] * (ncols - len(r)) for r in body]
-    first = max(1.0, min(2.2, max((len(r[0]) for r in rows), default=10) / 22))
-    rest = (ncols - 1) or 1
-    widths = [width * first / (first + rest)] + [width * 1 / (first + rest)] * rest
+    # Width follows the mean text length of each column, clamped so short
+    # columns stay readable and one long column cannot take the whole table.
+    weights = []
+    for j in range(ncols):
+        cells = [r[j] for r in rows if j < len(r)]
+        mean_len = sum(len(c) for c in cells) / max(1, len(cells))
+        weights.append(max(11.0, min(70.0, mean_len)))
+    widths = [width * w / sum(weights) for w in weights]
     t = Table(data, colWidths=widths, repeatRows=1, hAlign="LEFT")
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), ACCENT),

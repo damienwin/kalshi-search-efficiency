@@ -1,0 +1,169 @@
+{
+  "features": [
+    "mid",
+    "spread",
+    "rel_spread",
+    "dist_from_half",
+    "ret_1h",
+    "ret_4h",
+    "ret_24h",
+    "prev_label",
+    "vol_24h",
+    "range_24h",
+    "log_volume_24h",
+    "active_hours_24h",
+    "oi_change_24h",
+    "hours_since_open"
+  ],
+  "n_events_scored": 10371,
+  "pooled_macro_f1": {
+    "model": 0.5197649825387258,
+    "majority": 0.3065625,
+    "no_change": 0.3065625,
+    "momentum": 0.4606045493249635,
+    "random": 0.3358370094122372
+  },
+  "pooled_logloss_model": 0.4973954108985999,
+  "direction_breakdown_model": {
+    "move_auc": 0.901196482996798,
+    "dir_auc": 0.5224605682493383,
+    "dir_acc": 0.519455252918288,
+    "n_moves": 1542,
+    "n_called_move": 2182,
+    "right_direction": 600,
+    "flips": 576,
+    "false_moves": 1006,
+    "missed_moves": 366
+  },
+  "model_spec": {
+    "kind": "two_stage",
+    "flip_cost": 1.0
+  },
+  "comparisons": {
+    "model_vs_majority": {
+      "delta": 0.2132024825387258,
+      "ci95": [
+        0.19101762043978263,
+        0.23483726321149573
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    },
+    "model_vs_no_change": {
+      "delta": 0.2132024825387258,
+      "ci95": [
+        0.19101762043978263,
+        0.23483726321149573
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    },
+    "model_vs_momentum": {
+      "delta": 0.05916043321376235,
+      "ci95": [
+        0.03771736113379289,
+        0.0799711981924316
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    },
+    "model_vs_random": {
+      "delta": 0.18392797312648862,
+      "ci95": [
+        0.16118339151896094,
+        0.20534594101812417
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    }
+  },
+  "legacy_keep_rule_vs_momentum": {
+    "verdict": "KEPT",
+    "delta": 0.053859917194798324,
+    "folds_won": 5,
+    "required": 4,
+    "n_folds": 5
+  },
+  "per_fold": [
+    {
+      "fold": 1,
+      "n_train": 1970,
+      "n_val": 1671,
+      "val_start": 1740513600,
+      "val_end": 1753632000,
+      "f1_model": 0.47758505846563754,
+      "f1_majority": 0.29120323559150657,
+      "f1_no_change": 0.29120323559150657,
+      "f1_momentum": 0.4154564241354563,
+      "f1_random": 0.3207009647197956,
+      "logloss_model": 0.7216574349233786
+    },
+    {
+      "fold": 2,
+      "n_train": 4173,
+      "n_val": 3296,
+      "val_start": 1747411200,
+      "val_end": 1773259200,
+      "f1_model": 0.49041972105239706,
+      "f1_majority": 0.3158790974882929,
+      "f1_no_change": 0.3158790974882929,
+      "f1_momentum": 0.4536514506802134,
+      "f1_random": 0.3383894759062578,
+      "logloss_model": 0.3887171343172506
+    },
+    {
+      "fold": 3,
+      "n_train": 8021,
+      "n_val": 1772,
+      "val_start": 1754668800,
+      "val_end": 1767931200,
+      "f1_model": 0.5681756701027251,
+      "f1_majority": 0.3119119119119119,
+      "f1_no_change": 0.3119119119119119,
+      "f1_momentum": 0.4944373280463306,
+      "f1_random": 0.3371025467414372,
+      "logloss_model": 0.35893539234124866
+    },
+    {
+      "fold": 4,
+      "n_train": 10858,
+      "n_val": 2190,
+      "val_start": 1760371200,
+      "val_end": 1773288000,
+      "f1_model": 0.551346727332252,
+      "f1_majority": 0.3112625770853619,
+      "f1_no_change": 0.3112625770853619,
+      "f1_momentum": 0.5213516566395408,
+      "f1_random": 0.3309661888609257,
+      "logloss_model": 0.3512941811356075
+    },
+    {
+      "fold": 5,
+      "n_train": 14096,
+      "n_val": 1442,
+      "val_start": 1766692800,
+      "val_end": 1773374400,
+      "f1_model": 0.48170873200472414,
+      "f1_majority": 0.2868431450019755,
+      "f1_no_change": 0.2868431450019755,
+      "f1_momentum": 0.41503946348220305,
+      "f1_random": 0.34174326102881797,
+      "logloss_model": 0.877960323194926
+    }
+  ],
+  "label_dist_scored": {
+    "FLAT": 8829,
+    "UP": 816,
+    "DOWN": 726
+  },
+  "feature_set": "price",
+  "reference_set": null,
+  "news_only": false,
+  "scope": "current",
+  "seed": 0,
+  "data_sha256": "be87830aeed4da9f15d32413b1481131b59ed636f5faf0b432509fe8e135ed8b"
+}

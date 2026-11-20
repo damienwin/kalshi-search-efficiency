@@ -1,0 +1,169 @@
+{
+  "features": [
+    "mid",
+    "spread",
+    "rel_spread",
+    "dist_from_half",
+    "ret_1h",
+    "ret_4h",
+    "ret_24h",
+    "prev_label",
+    "vol_24h",
+    "range_24h",
+    "log_volume_24h",
+    "active_hours_24h",
+    "oi_change_24h",
+    "hours_since_open"
+  ],
+  "n_events_scored": 4559,
+  "pooled_macro_f1": {
+    "model": 0.5196310181562026,
+    "majority": 0.27963835476887816,
+    "no_change": 0.27963835476887816,
+    "momentum": 0.4514299411260865,
+    "random": 0.32958918953321864
+  },
+  "pooled_logloss_model": 0.7040258929983414,
+  "direction_breakdown_model": {
+    "move_auc": 0.8687568246014432,
+    "dir_auc": 0.5201663516068052,
+    "dir_acc": 0.5130434782608696,
+    "n_moves": 1265,
+    "n_called_move": 1695,
+    "right_direction": 526,
+    "flips": 507,
+    "false_moves": 662,
+    "missed_moves": 232
+  },
+  "model_spec": {
+    "kind": "3class",
+    "flip_cost": 1.0
+  },
+  "comparisons": {
+    "model_vs_majority": {
+      "delta": 0.23999266338732445,
+      "ci95": [
+        0.21664724092727378,
+        0.26420853997943466
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    },
+    "model_vs_no_change": {
+      "delta": 0.23999266338732445,
+      "ci95": [
+        0.21664724092727378,
+        0.26420853997943466
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    },
+    "model_vs_momentum": {
+      "delta": 0.06820107703011613,
+      "ci95": [
+        0.04411018755662104,
+        0.09376474326212723
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    },
+    "model_vs_random": {
+      "delta": 0.19004182862298397,
+      "ci95": [
+        0.15851991538683863,
+        0.21785242267205857
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    }
+  },
+  "legacy_keep_rule_vs_momentum": {
+    "verdict": "KEPT",
+    "delta": 0.06762708203560397,
+    "folds_won": 5,
+    "required": 4,
+    "n_folds": 5
+  },
+  "per_fold": [
+    {
+      "fold": 1,
+      "n_train": 664,
+      "n_val": 1218,
+      "val_start": 1741449600,
+      "val_end": 1753531200,
+      "f1_model": 0.4849916693187562,
+      "f1_majority": 0.2843691148775895,
+      "f1_no_change": 0.2843691148775895,
+      "f1_momentum": 0.4149038582648175,
+      "f1_random": 0.3133534525926949,
+      "logloss_model": 0.7131599659735113
+    },
+    {
+      "fold": 2,
+      "n_train": 1798,
+      "n_val": 969,
+      "val_start": 1748534400,
+      "val_end": 1755417600,
+      "f1_model": 0.5016540201569485,
+      "f1_majority": 0.28441814595660747,
+      "f1_no_change": 0.28441814595660747,
+      "f1_momentum": 0.46021541187134346,
+      "f1_random": 0.35587405989101956,
+      "logloss_model": 0.6991744347437022
+    },
+    {
+      "fold": 3,
+      "n_train": 2881,
+      "n_val": 481,
+      "val_start": 1755360000,
+      "val_end": 1761350400,
+      "f1_model": 0.5376215411227916,
+      "f1_majority": 0.24913194444444445,
+      "f1_no_change": 0.24913194444444445,
+      "f1_momentum": 0.4351258897865488,
+      "f1_random": 0.3317548095528482,
+      "logloss_model": 0.8512273731541801
+    },
+    {
+      "fold": 4,
+      "n_train": 3339,
+      "n_val": 870,
+      "val_start": 1760976000,
+      "val_end": 1768276800,
+      "f1_model": 0.5437089237462002,
+      "f1_majority": 0.27688172043010756,
+      "f1_no_change": 0.27688172043010756,
+      "f1_momentum": 0.4984521019257108,
+      "f1_random": 0.3330975104498598,
+      "logloss_model": 0.6042451193477787
+    },
+    {
+      "fold": 5,
+      "n_train": 4154,
+      "n_val": 1021,
+      "val_start": 1767571200,
+      "val_end": 1773374400,
+      "f1_model": 0.5202152047339174,
+      "f1_majority": 0.284913067863152,
+      "f1_no_change": 0.284913067863152,
+      "f1_momentum": 0.441358687052173,
+      "f1_random": 0.3167101375561947,
+      "logloss_model": 0.7134099510649619
+    }
+  ],
+  "label_dist_scored": {
+    "FLAT": 3294,
+    "UP": 690,
+    "DOWN": 575
+  },
+  "feature_set": "price",
+  "reference_set": null,
+  "news_only": true,
+  "scope": "current",
+  "seed": 1,
+  "data_sha256": "be87830aeed4da9f15d32413b1481131b59ed636f5faf0b432509fe8e135ed8b"
+}

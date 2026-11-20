@@ -1,0 +1,170 @@
+{
+  "features": [
+    "mid",
+    "spread",
+    "rel_spread",
+    "dist_from_half",
+    "ret_1h",
+    "ret_4h",
+    "ret_24h",
+    "prev_label",
+    "vol_24h",
+    "range_24h",
+    "log_volume_24h",
+    "active_hours_24h",
+    "oi_change_24h",
+    "hours_since_open"
+  ],
+  "n_events_scored": 4559,
+  "pooled_macro_f1": {
+    "model": 0.5161400201038359,
+    "majority": 0.27963835476887816,
+    "no_change": 0.27963835476887816,
+    "momentum": 0.4514299411260865,
+    "random": 0.324424949601317
+  },
+  "pooled_logloss_model": 0.6573685642881688,
+  "direction_breakdown_model": {
+    "move_auc": 0.8681892577473476,
+    "dir_auc": 0.5185280403276623,
+    "dir_acc": 0.5059288537549407,
+    "n_moves": 1265,
+    "n_called_move": 1434,
+    "right_direction": 464,
+    "flips": 455,
+    "false_moves": 515,
+    "missed_moves": 346
+  },
+  "model_spec": {
+    "kind": "flip_penalty",
+    "flip_cost": 1.0,
+    "lam": 3.0
+  },
+  "comparisons": {
+    "model_vs_majority": {
+      "delta": 0.2365016653349577,
+      "ci95": [
+        0.2131395921755092,
+        0.260933157456784
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    },
+    "model_vs_no_change": {
+      "delta": 0.2365016653349577,
+      "ci95": [
+        0.2131395921755092,
+        0.260933157456784
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    },
+    "model_vs_momentum": {
+      "delta": 0.06471007897774939,
+      "ci95": [
+        0.0404286878287769,
+        0.09088365535950656
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    },
+    "model_vs_random": {
+      "delta": 0.19171507050251885,
+      "ci95": [
+        0.1647255915822888,
+        0.2162109338516859
+      ],
+      "excludes_zero": true,
+      "n_groups": 260,
+      "n_boot": 2000
+    }
+  },
+  "legacy_keep_rule_vs_momentum": {
+    "verdict": "KEPT",
+    "delta": 0.06396533538051641,
+    "folds_won": 5,
+    "required": 4,
+    "n_folds": 5
+  },
+  "per_fold": [
+    {
+      "fold": 1,
+      "n_train": 664,
+      "n_val": 1218,
+      "val_start": 1741449600,
+      "val_end": 1753531200,
+      "f1_model": 0.4801553478265841,
+      "f1_majority": 0.2843691148775895,
+      "f1_no_change": 0.2843691148775895,
+      "f1_momentum": 0.4149038582648175,
+      "f1_random": 0.3317237407439197,
+      "logloss_model": 0.7000523805618286
+    },
+    {
+      "fold": 2,
+      "n_train": 1798,
+      "n_val": 969,
+      "val_start": 1748534400,
+      "val_end": 1755417600,
+      "f1_model": 0.48821532678797713,
+      "f1_majority": 0.28441814595660747,
+      "f1_no_change": 0.28441814595660747,
+      "f1_momentum": 0.46021541187134346,
+      "f1_random": 0.32545888485520474,
+      "logloss_model": 0.6604726314544678
+    },
+    {
+      "fold": 3,
+      "n_train": 2881,
+      "n_val": 481,
+      "val_start": 1755360000,
+      "val_end": 1761350400,
+      "f1_model": 0.5315552638184988,
+      "f1_majority": 0.24913194444444445,
+      "f1_no_change": 0.24913194444444445,
+      "f1_momentum": 0.4351258897865488,
+      "f1_random": 0.31059718933734687,
+      "logloss_model": 0.7508662939071655
+    },
+    {
+      "fold": 4,
+      "n_train": 3339,
+      "n_val": 870,
+      "val_start": 1760976000,
+      "val_end": 1768276800,
+      "f1_model": 0.5471664264245979,
+      "f1_majority": 0.27688172043010756,
+      "f1_no_change": 0.27688172043010756,
+      "f1_momentum": 0.4984521019257108,
+      "f1_random": 0.32317100488329376,
+      "logloss_model": 0.5744174718856812
+    },
+    {
+      "fold": 5,
+      "n_train": 4154,
+      "n_val": 1021,
+      "val_start": 1767571200,
+      "val_end": 1773374400,
+      "f1_model": 0.5227902609455181,
+      "f1_majority": 0.284913067863152,
+      "f1_no_change": 0.284913067863152,
+      "f1_momentum": 0.441358687052173,
+      "f1_random": 0.31981568510339553,
+      "logloss_model": 0.6301386952400208
+    }
+  ],
+  "label_dist_scored": {
+    "FLAT": 3294,
+    "UP": 690,
+    "DOWN": 575
+  },
+  "feature_set": "price",
+  "reference_set": null,
+  "news_only": true,
+  "scope": "current",
+  "seed": 4,
+  "data_sha256": "be87830aeed4da9f15d32413b1481131b59ed636f5faf0b432509fe8e135ed8b"
+}
