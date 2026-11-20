@@ -343,15 +343,43 @@ def test_transient_refusal_is_resent_unchanged_and_costs_no_repair(monkeypatch):
     assert msgs[0] == msgs[1] == msgs[2]  # resent as is, not a repair prompt
 
 
-def test_persistent_refusal_stops_the_run_instead_of_failing_the_trial(monkeypatch):
-    import pytest
-    from ksearch.search.arms.llm import ProposerUnavailable
+def test_persistent_refusal_fails_the_trial_and_the_next_trial_goes_on(monkeypatch):
     waits = []
     monkeypatch.setattr("ksearch.search.arms.llm.time.sleep", waits.append)
-    a = arm("full", [REFUSAL] * 5, max_repairs=0, max_refusal_retries=4)
-    with pytest.raises(ProposerUnavailable):
-        a.propose(state())
+    a = arm("full", [REFUSAL] * 5 + [answer(VALID[0])], max_repairs=0, max_refusal_retries=4)
+    p = a.propose(state())
+    assert not p.meta["valid"] and p.spec_json == "" and p.meta["refusals"] == 5
+    assert "refused 5 times in a row" in p.meta["errors"][0]
     assert len(a.client.requests) == 5 and waits == [2.0, 4.0, 8.0, 16.0]
+    assert a.propose(state()).meta["valid"] and a.refused_trials == 0
+
+
+def test_refused_trials_in_a_row_stop_the_run(monkeypatch):
+    import pytest
+    from ksearch.search.arms.llm import ProposerUnavailable
+    monkeypatch.setattr("ksearch.search.arms.llm.time.sleep", lambda s: None)
+    a = arm("full", [REFUSAL] * 6, max_repairs=0, max_refusal_retries=1, max_refused_trials=3)
+    assert not a.propose(state()).meta["valid"]
+    assert not a.propose(state()).meta["valid"]
+    with pytest.raises(ProposerUnavailable, match="3 trials in a row"):
+        a.propose(state())
+
+
+def test_resume_client_replays_the_recording_then_goes_live():
+    import pytest
+    from ksearch.search.arms.llm import ReplayMismatch, ResumeClient
+    rec = arm("full", [answer(VALID[0])])
+    rec.propose(state())
+    live = FakeClient([answer(VALID[1])])
+    a = arm("full", [])
+    a.client = ResumeClient(rec.transcript, live)
+    assert a.propose(state()).spec_json == VALID[0] and live.requests == []
+    assert a.propose(state()).spec_json == VALID[1] and len(live.requests) == 1
+    assert a.client.replayed == 1
+    b = arm("full", [])
+    b.client = ResumeClient(rec.transcript, FakeClient([]))
+    with pytest.raises(ReplayMismatch):
+        b.propose(state(history=()))  # a different prompt than the one recorded
 
 
 def test_refusals_off_logs_a_failed_proposal(monkeypatch):

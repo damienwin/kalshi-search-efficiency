@@ -95,8 +95,9 @@ DEFAULTS = {
     "max_tokens": 16000,      # non-streaming ceiling; thinking shares it
     "effort": "high",         # hypothesis generation is reasoning-sensitive
     "temperature": None,      # None = not sent (Opus 5.5 returns 400 on it)
-    "max_refusal_retries": 20, # resends of an unchanged request after an empty refusal (backoff 2s doubling,
-                               # capped at 120s: ~30 min in all); then the run stops (ProposerUnavailable); 0 = off
+    "max_refusal_retries": 8,  # resends of an unchanged request after an empty refusal (backoff 2s doubling,
+                               # capped at 120s: ~8 min in all); then the trial fails as "refused"; 0 = off
+    "max_refused_trials": 3,  # that many refused trials in a row stops the run (ProposerUnavailable)
     "max_repairs": 2,         # re-asks after a SpecError; 3 calls per trial at most
     "history_cap": 250,       # > planned budget of 200, so never binds in the study
 }
@@ -376,8 +377,8 @@ class LLMClient(Protocol):
 
 
 class ProposerUnavailable(RuntimeError):
-    """The API kept refusing an unchanged, benign request. Raised instead of logging a failed
-    trial, so an outage on the provider's side is never charged to the arm's trial budget."""
+    """The API refused every trial's request for several trials in a row (max_refused_trials),
+    which looks like an outage on the provider's side; the run stops instead of charging them."""
 
 
 class LLMConfigError(RuntimeError):
@@ -509,6 +510,24 @@ class ReplayClient:
         return Completion.from_dict(e["response"])
 
 
+class ResumeClient:
+    """Resume a stopped run: serve the recorded calls in order (checked like ReplayClient), then
+    pass every later call to the live client. The search loop re-evaluates the replayed trials
+    itself, so the resumed run's trials, transcript and outcomes are those of an unbroken run."""
+
+    def __init__(self, transcript: list[dict], live: LLMClient):
+        self.replay, self.live = ReplayClient(transcript), live
+
+    @property
+    def replayed(self) -> int:
+        return self.replay.i
+
+    def complete(self, system: str, messages: list[dict], **params: Any) -> Completion:
+        if self.replay.i < len(self.replay.entries):
+            return self.replay.complete(system, messages, **params)
+        return self.live.complete(system, messages, **params)
+
+
 def write_transcript(path: str | Path, transcript: list[dict]) -> None:
     with open(path, "w") as f:
         for e in transcript:
@@ -550,6 +569,7 @@ class LLMArm(Arm):
                  model: str | None = None, max_tokens: int | None = None, effort: str | None = None,
                  temperature: float | None = None, max_repairs: int | None = None,
                  max_refusal_retries: int | None = None,
+                 max_refused_trials: int | None = None,
                  history_cap: int | None = None, settings_path: str | Path | None = None,
                  **grammar_kwargs: Any):
         super().__init__(seed)
@@ -565,6 +585,8 @@ class LLMArm(Arm):
         self.max_repairs = int(pick(max_repairs, "max_repairs"))
         self.max_refusal_retries = int(pick(max_refusal_retries, "max_refusal_retries"))
         self.history_cap = int(pick(history_cap, "history_cap"))
+        self.max_refused_trials = int(pick(max_refused_trials, "max_refused_trials"))
+        self.refused_trials = 0                # consecutive trials whose request was always refused
         self.grammar_kwargs = grammar_kwargs   # forwarded to parse/catalog (e.g. include_cross)
         self.client: LLMClient = client if client is not None else AnthropicClient()
         self.transcript: list[dict] = []
@@ -612,12 +634,23 @@ class LLMArm(Arm):
                 # bad proposal and costs no repair or trial budget. A burst that outlasts the
                 # retries stops the run rather than charging the arm a failed trial.
                 if refusals >= self.max_refusal_retries:
-                    raise ProposerUnavailable(
-                        f"trial {state.trial}: {refusals + 1} consecutive refusals of an unchanged request")
+                    # Smoke tests saw short API-wide bursts; full runs also saw one exact request
+                    # refused for 30+ min while other seeds' requests went through, so retrying it
+                    # unchanged cannot help. The proposer failed to propose: charge a failed trial
+                    # (the next trial's prompt differs). Several such trials in a row is an outage.
+                    self.refused_trials += 1
+                    if self.refused_trials >= self.max_refused_trials:
+                        raise ProposerUnavailable(
+                            f"trial {state.trial}: {self.refused_trials} trials in a row refused "
+                            f"{refusals + 1} times each")
+                    failures.append(("", f"refused {refusals + 1} times in a row; no proposal"))
+                    spec_out = ""
+                    break
                 refusals += 1
                 time.sleep(min(2.0 ** refusals, 120.0))
                 continue
             refusals = 0
+            self.refused_trials = 0
             attempt += 1
             try:
                 rationale, spec, raw = _read_answer(c)
