@@ -10,7 +10,7 @@ import pytest
 from ksearch.search import parse
 from ksearch.search.arms.base import Proposal, SearchState, TrialOutcome
 from ksearch.search.arms.llm import (
-    MODES, AnthropicClient, FakeClient, LLMArm, LLMConfigError, ReplayClient, ReplayMismatch,
+    MODES, AnthropicClient, Completion, FakeClient, LLMArm, LLMConfigError, ReplayClient, ReplayMismatch,
     read_transcript, scrub, system_prompt, user_prompt, write_transcript,
 )
 from ksearch.search.grammar import DEFAULT_COLUMNS, DEFAULT_MAX_DEPTH
@@ -327,3 +327,76 @@ def test_absurdly_nested_answer_is_repaired_not_a_crash():
     from ksearch.search import SpecError
     with pytest.raises(SpecError):
         parse(deep)
+
+
+# ── transient API refusals ───────────────────────────────────────────────────
+REFUSAL = Completion(text=None, usage={"input_tokens": 5}, stop_reason="refusal", model="fake")
+
+
+def test_transient_refusal_is_resent_unchanged_and_costs_no_repair(monkeypatch):
+    monkeypatch.setattr("ksearch.search.arms.llm.time.sleep", lambda s: None)
+    a = arm("full", [REFUSAL, REFUSAL, answer(VALID[0], "ok")], max_repairs=0)
+    p = a.propose(state())
+    assert p.meta["valid"] and p.meta["repairs"] == 0 and p.meta["refusals"] == 2
+    assert p.spec_json == VALID[0] and len(a.client.requests) == 3
+    msgs = [r["messages"][0]["content"] for r in a.client.requests]
+    assert msgs[0] == msgs[1] == msgs[2]  # resent as is, not a repair prompt
+
+
+def test_persistent_refusal_fails_the_trial_and_the_next_trial_goes_on(monkeypatch):
+    waits = []
+    monkeypatch.setattr("ksearch.search.arms.llm.time.sleep", waits.append)
+    a = arm("full", [REFUSAL] * 5 + [answer(VALID[0])], max_repairs=0, max_refusal_retries=4)
+    p = a.propose(state())
+    assert not p.meta["valid"] and p.spec_json == "" and p.meta["refusals"] == 5
+    assert "refused 5 times in a row" in p.meta["errors"][0]
+    assert len(a.client.requests) == 5 and waits == [2.0, 4.0, 8.0, 16.0]
+    assert a.propose(state()).meta["valid"] and a.refused_trials == 0
+
+
+def test_refused_trials_in_a_row_stop_the_run(monkeypatch):
+    import pytest
+    from ksearch.search.arms.llm import ProposerUnavailable
+    monkeypatch.setattr("ksearch.search.arms.llm.time.sleep", lambda s: None)
+    a = arm("full", [REFUSAL] * 6, max_repairs=0, max_refusal_retries=1, max_refused_trials=3)
+    assert not a.propose(state()).meta["valid"]
+    assert not a.propose(state()).meta["valid"]
+    with pytest.raises(ProposerUnavailable, match="3 trials in a row"):
+        a.propose(state())
+
+
+def test_resume_client_replays_the_recording_then_goes_live():
+    import pytest
+    from ksearch.search.arms.llm import ReplayMismatch, ResumeClient
+    rec = arm("full", [answer(VALID[0])])
+    rec.propose(state())
+    live = FakeClient([answer(VALID[1])])
+    a = arm("full", [])
+    a.client = ResumeClient(rec.transcript, live)
+    assert a.propose(state()).spec_json == VALID[0] and live.requests == []
+    assert a.propose(state()).spec_json == VALID[1] and len(live.requests) == 1
+    assert a.client.replayed == 1
+    b = arm("full", [])
+    b.client = ResumeClient(rec.transcript, FakeClient([]))
+    with pytest.raises(ReplayMismatch):
+        b.propose(state(history=()))  # a different prompt than the one recorded
+
+
+def test_refusals_off_logs_a_failed_proposal(monkeypatch):
+    a = arm("full", [REFUSAL], max_repairs=0, max_refusal_retries=0)
+    p = a.propose(state())
+    assert not p.meta["valid"] and p.meta["refusals"] == 1
+    assert "stop_reason=refusal" in p.meta["errors"][0]
+
+
+def test_request_sent_is_byte_identical_to_the_logged_request():
+    # The API refused OUTPUT_SCHEMA in source key order but not in the sorted, logged order,
+    # so the live request must be the normalized one (key order included), not just equal.
+    import json
+    a = arm("full", [answer(VALID[0])])
+    a.propose(state())
+    sent = a.client.requests[0]
+    logged = a.transcript[0]["request"]
+    for k in ("output_config", "thinking"):
+        assert json.dumps(sent[k]) == json.dumps(logged[k])
+    assert list(sent["output_config"]["format"]["schema"]) == sorted(sent["output_config"]["format"]["schema"])

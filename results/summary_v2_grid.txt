@@ -1,0 +1,189 @@
+
+=== scope: all ===
+
+[price]  n=17890  seeds=5  labels={'FLAT': 15621, 'UP': 1192, 'DOWN': 1077}
+  F1 model      0.4989 ± 0.0026
+  F1 majority   0.3108 ± 0.0000
+  F1 no_change  0.3108 ± 0.0000
+  F1 momentum   0.4540 ± 0.0000
+  F1 random     0.3272 ± 0.0031
+  model_vs_majority      Δ 0.1881 ± 0.0026  [+0.1859,+0.1923]  pos 5/5  CI(median) [+0.1668,+0.2077]  sig 5/5
+  model_vs_no_change     Δ 0.1881 ± 0.0026  [+0.1859,+0.1923]  pos 5/5  CI(median) [+0.1668,+0.2077]  sig 5/5
+  model_vs_momentum      Δ 0.0449 ± 0.0026  [+0.0427,+0.0490]  pos 5/5  CI(median) [+0.0250,+0.0629]  sig 5/5
+  model_vs_random        Δ 0.1717 ± 0.0046  [+0.1655,+0.1768]  pos 5/5  CI(median) [+0.1453,+0.1956]  sig 5/5
+
+[price, news-only]  n=6376  seeds=5  labels={'FLAT': 4574, 'UP': 966, 'DOWN': 836}
+  F1 model      0.5079 ± 0.0048
+  F1 majority   0.2785 ± 0.0000
+  F1 no_change  0.2785 ± 0.0000
+  F1 momentum   0.4438 ± 0.0000
+  F1 random     0.3400 ± 0.0033
+  model_vs_majority      Δ 0.2294 ± 0.0048  [+0.2227,+0.2344]  pos 5/5  CI(median) [+0.2075,+0.2499]  sig 5/5
+  model_vs_no_change     Δ 0.2294 ± 0.0048  [+0.2227,+0.2344]  pos 5/5  CI(median) [+0.2075,+0.2499]  sig 5/5
+  model_vs_momentum      Δ 0.0641 ± 0.0048  [+0.0573,+0.0690]  pos 5/5  CI(median) [+0.0406,+0.0855]  sig 5/5
+  model_vs_random        Δ 0.1679 ± 0.0075  [+0.1558,+0.1740]  pos 5/5  CI(median) [+0.1438,+0.1941]  sig 5/5
+
+[price+sent vs price]  n=17890  seeds=5  labels={'FLAT': 15621, 'UP': 1192, 'DOWN': 1077}
+  F1 model      0.5095 ± 0.0012
+  F1 reference  0.4989 ± 0.0026
+  F1 majority   0.3108 ± 0.0000
+  F1 no_change  0.3108 ± 0.0000
+  F1 momentum   0.4540 ± 0.0000
+  F1 random     0.3272 ± 0.0031
+  model_vs_reference     Δ 0.0106 ± 0.0034  [+0.0049,+0.0137]  pos 5/5  CI(median) [-0.0000,+0.0216]  sig 2/5
+  model_vs_majority      Δ 0.1987 ± 0.0012  [+0.1971,+0.2001]  pos 5/5  CI(median) [+0.1799,+0.2176]  sig 5/5
+  model_vs_no_change     Δ 0.1987 ± 0.0012  [+0.1971,+0.2001]  pos 5/5  CI(median) [+0.1799,+0.2176]  sig 5/5
+  model_vs_momentum      Δ 0.0555 ± 0.0012  [+0.0539,+0.0569]  pos 5/5  CI(median) [+0.0379,+0.0728]  sig 5/5
+  model_vs_random        Δ 0.1823 ± 0.0036  [+0.1781,+0.1875]  pos 5/5  CI(median) [+0.1565,+0.2045]  sig 5/5
+
+[price+sent vs price, news-only]  n=6376  seeds=5  labels={'FLAT': 4574, 'UP': 966, 'DOWN': 836}
+  F1 model      0.5163 ± 0.0034
+  F1 reference  0.5079 ± 0.0048
+  F1 majority   0.2785 ± 0.0000
+  F1 no_change  0.2785 ± 0.0000
+  F1 momentum   0.4438 ± 0.0000
+  F1 random     0.3400 ± 0.0033
+  model_vs_reference     Δ 0.0084 ± 0.0075  [-0.0006,+0.0197]  pos 4/5  CI(median) [-0.0074,+0.0222]  sig 1/5
+  model_vs_majority      Δ 0.2378 ± 0.0034  [+0.2330,+0.2424]  pos 5/5  CI(median) [+0.2197,+0.2558]  sig 5/5
+  model_vs_no_change     Δ 0.2378 ± 0.0034  [+0.2330,+0.2424]  pos 5/5  CI(median) [+0.2197,+0.2558]  sig 5/5
+  model_vs_momentum      Δ 0.0725 ± 0.0034  [+0.0677,+0.0770]  pos 5/5  CI(median) [+0.0523,+0.0930]  sig 5/5
+  model_vs_random        Δ 0.1763 ± 0.0021  [+0.1734,+0.1787]  pos 5/5  CI(median) [+0.1516,+0.1986]  sig 5/5
+
+[sent-only, news-only]  n=6376  seeds=5  labels={'FLAT': 4574, 'UP': 966, 'DOWN': 836}
+  F1 model      0.3787 ± 0.0058
+  F1 reference  0.5079 ± 0.0048
+  F1 majority   0.2785 ± 0.0000
+  F1 no_change  0.2785 ± 0.0000
+  F1 momentum   0.4438 ± 0.0000
+  F1 random     0.3400 ± 0.0033
+  model_vs_reference     Δ -0.1292 ± 0.0097  [-0.1402,-0.1146]  pos 0/5  CI(median) [-0.1578,-0.1033]  sig 5/5
+  model_vs_majority      Δ 0.1002 ± 0.0058  [+0.0934,+0.1080]  pos 5/5  CI(median) [+0.0782,+0.1223]  sig 5/5
+  model_vs_no_change     Δ 0.1002 ± 0.0058  [+0.0934,+0.1080]  pos 5/5  CI(median) [+0.0782,+0.1223]  sig 5/5
+  model_vs_momentum      Δ -0.0651 ± 0.0058  [-0.0719,-0.0573]  pos 0/5  CI(median) [-0.0880,-0.0416]  sig 5/5
+  model_vs_random        Δ 0.0387 ± 0.0049  [+0.0338,+0.0455]  pos 5/5  CI(median) [+0.0176,+0.0598]  sig 5/5
+
+=== scope: spring ===
+
+[price]  n=2577  seeds=5  labels={'FLAT': 1961, 'UP': 320, 'DOWN': 296}
+  F1 model      0.4344 ± 0.0060
+  F1 majority   0.2881 ± 0.0000
+  F1 no_change  0.2881 ± 0.0000
+  F1 momentum   0.3830 ± 0.0000
+  F1 random     0.3311 ± 0.0069
+  model_vs_majority      Δ 0.1463 ± 0.0060  [+0.1393,+0.1554]  pos 5/5  CI(median) [+0.1125,+0.1793]  sig 5/5
+  model_vs_no_change     Δ 0.1463 ± 0.0060  [+0.1393,+0.1554]  pos 5/5  CI(median) [+0.1125,+0.1793]  sig 5/5
+  model_vs_momentum      Δ 0.0514 ± 0.0060  [+0.0444,+0.0605]  pos 5/5  CI(median) [+0.0128,+0.0896]  sig 5/5
+  model_vs_random        Δ 0.1033 ± 0.0021  [+0.1005,+0.1061]  pos 5/5  CI(median) [+0.0686,+0.1400]  sig 5/5
+
+[price, news-only]  n=1581  seeds=5  labels={'FLAT': 1145, 'UP': 225, 'DOWN': 211}
+  F1 model      0.4398 ± 0.0070
+  F1 majority   0.2800 ± 0.0000
+  F1 no_change  0.2800 ± 0.0000
+  F1 momentum   0.3961 ± 0.0000
+  F1 random     0.3236 ± 0.0098
+  model_vs_majority      Δ 0.1598 ± 0.0070  [+0.1496,+0.1682]  pos 5/5  CI(median) [+0.1265,+0.1964]  sig 5/5
+  model_vs_no_change     Δ 0.1598 ± 0.0070  [+0.1496,+0.1682]  pos 5/5  CI(median) [+0.1265,+0.1964]  sig 5/5
+  model_vs_momentum      Δ 0.0437 ± 0.0070  [+0.0335,+0.0521]  pos 5/5  CI(median) [+0.0055,+0.0871]  sig 4/5
+  model_vs_random        Δ 0.1162 ± 0.0089  [+0.1048,+0.1239]  pos 5/5  CI(median) [+0.0830,+0.1569]  sig 5/5
+
+[price+sent vs price]  n=2577  seeds=5  labels={'FLAT': 1961, 'UP': 320, 'DOWN': 296}
+  F1 model      0.4395 ± 0.0038
+  F1 reference  0.4344 ± 0.0060
+  F1 majority   0.2881 ± 0.0000
+  F1 no_change  0.2881 ± 0.0000
+  F1 momentum   0.3830 ± 0.0000
+  F1 random     0.3311 ± 0.0069
+  model_vs_reference     Δ 0.0051 ± 0.0081  [-0.0034,+0.0173]  pos 3/5  CI(median) [-0.0217,+0.0336]  sig 0/5
+  model_vs_majority      Δ 0.1514 ± 0.0038  [+0.1460,+0.1566]  pos 5/5  CI(median) [+0.1257,+0.1775]  sig 5/5
+  model_vs_no_change     Δ 0.1514 ± 0.0038  [+0.1460,+0.1566]  pos 5/5  CI(median) [+0.1257,+0.1775]  sig 5/5
+  model_vs_momentum      Δ 0.0565 ± 0.0038  [+0.0512,+0.0617]  pos 5/5  CI(median) [+0.0252,+0.0882]  sig 5/5
+  model_vs_random        Δ 0.1084 ± 0.0093  [+0.0998,+0.1215]  pos 5/5  CI(median) [+0.0745,+0.1392]  sig 5/5
+
+[price+sent vs price, news-only]  n=1581  seeds=5  labels={'FLAT': 1145, 'UP': 225, 'DOWN': 211}
+  F1 model      0.4495 ± 0.0048
+  F1 reference  0.4398 ± 0.0070
+  F1 majority   0.2800 ± 0.0000
+  F1 no_change  0.2800 ± 0.0000
+  F1 momentum   0.3961 ± 0.0000
+  F1 random     0.3236 ± 0.0098
+  model_vs_reference     Δ 0.0097 ± 0.0053  [+0.0028,+0.0178]  pos 5/5  CI(median) [-0.0201,+0.0415]  sig 0/5
+  model_vs_majority      Δ 0.1695 ± 0.0048  [+0.1646,+0.1765]  pos 5/5  CI(median) [+0.1361,+0.1993]  sig 5/5
+  model_vs_no_change     Δ 0.1695 ± 0.0048  [+0.1646,+0.1765]  pos 5/5  CI(median) [+0.1361,+0.1993]  sig 5/5
+  model_vs_momentum      Δ 0.0534 ± 0.0048  [+0.0485,+0.0604]  pos 5/5  CI(median) [+0.0136,+0.0900]  sig 5/5
+  model_vs_random        Δ 0.1260 ± 0.0119  [+0.1115,+0.1381]  pos 5/5  CI(median) [+0.0943,+0.1678]  sig 5/5
+
+[sent-only, news-only]  n=1581  seeds=5  labels={'FLAT': 1145, 'UP': 225, 'DOWN': 211}
+  F1 model      0.3452 ± 0.0078
+  F1 reference  0.4398 ± 0.0070
+  F1 majority   0.2800 ± 0.0000
+  F1 no_change  0.2800 ± 0.0000
+  F1 momentum   0.3961 ± 0.0000
+  F1 random     0.3236 ± 0.0098
+  model_vs_reference     Δ -0.0946 ± 0.0145  [-0.1153,-0.0755]  pos 0/5  CI(median) [-0.1360,-0.0582]  sig 5/5
+  model_vs_majority      Δ 0.0652 ± 0.0078  [+0.0529,+0.0740]  pos 5/5  CI(median) [+0.0393,+0.0954]  sig 5/5
+  model_vs_no_change     Δ 0.0652 ± 0.0078  [+0.0529,+0.0740]  pos 5/5  CI(median) [+0.0393,+0.0954]  sig 5/5
+  model_vs_momentum      Δ -0.0509 ± 0.0078  [-0.0632,-0.0421]  pos 0/5  CI(median) [-0.0836,-0.0147]  sig 5/5
+  model_vs_random        Δ 0.0217 ± 0.0148  [+0.0086,+0.0448]  pos 5/5  CI(median) [-0.0172,+0.0495]  sig 1/5
+
+=== scope: current ===
+
+[price]  n=10371  seeds=5  labels={'FLAT': 8829, 'UP': 816, 'DOWN': 726}
+  F1 model      0.5028 ± 0.0018
+  F1 majority   0.3066 ± 0.0000
+  F1 no_change  0.3066 ± 0.0000
+  F1 momentum   0.4606 ± 0.0000
+  F1 random     0.3313 ± 0.0041
+  model_vs_majority      Δ 0.1962 ± 0.0018  [+0.1941,+0.1987]  pos 5/5  CI(median) [+0.1733,+0.2199]  sig 5/5
+  model_vs_no_change     Δ 0.1962 ± 0.0018  [+0.1941,+0.1987]  pos 5/5  CI(median) [+0.1733,+0.2199]  sig 5/5
+  model_vs_momentum      Δ 0.0422 ± 0.0018  [+0.0401,+0.0447]  pos 5/5  CI(median) [+0.0199,+0.0638]  sig 5/5
+  model_vs_random        Δ 0.1715 ± 0.0048  [+0.1664,+0.1778]  pos 5/5  CI(median) [+0.1424,+0.1978]  sig 5/5
+
+[price, news-only]  n=4559  seeds=5  labels={'FLAT': 3294, 'UP': 690, 'DOWN': 575}
+  F1 model      0.5176 ± 0.0030
+  F1 majority   0.2796 ± 0.0000
+  F1 no_change  0.2796 ± 0.0000
+  F1 momentum   0.4514 ± 0.0000
+  F1 random     0.3324 ± 0.0066
+  model_vs_majority      Δ 0.2379 ± 0.0030  [+0.2348,+0.2410]  pos 5/5  CI(median) [+0.2166,+0.2628]  sig 5/5
+  model_vs_no_change     Δ 0.2379 ± 0.0030  [+0.2348,+0.2410]  pos 5/5  CI(median) [+0.2166,+0.2628]  sig 5/5
+  model_vs_momentum      Δ 0.0661 ± 0.0030  [+0.0630,+0.0692]  pos 5/5  CI(median) [+0.0432,+0.0931]  sig 5/5
+  model_vs_random        Δ 0.1852 ± 0.0089  [+0.1723,+0.1962]  pos 5/5  CI(median) [+0.1575,+0.2105]  sig 5/5
+
+[price+sent vs price]  n=10371  seeds=5  labels={'FLAT': 8829, 'UP': 816, 'DOWN': 726}
+  F1 model      0.5157 ± 0.0025
+  F1 reference  0.5028 ± 0.0018
+  F1 majority   0.3066 ± 0.0000
+  F1 no_change  0.3066 ± 0.0000
+  F1 momentum   0.4606 ± 0.0000
+  F1 random     0.3313 ± 0.0041
+  model_vs_reference     Δ 0.0129 ± 0.0038  [+0.0080,+0.0165]  pos 5/5  CI(median) [+0.0010,+0.0275]  sig 3/5
+  model_vs_majority      Δ 0.2091 ± 0.0025  [+0.2067,+0.2122]  pos 5/5  CI(median) [+0.1836,+0.2343]  sig 5/5
+  model_vs_no_change     Δ 0.2091 ± 0.0025  [+0.2067,+0.2122]  pos 5/5  CI(median) [+0.1836,+0.2343]  sig 5/5
+  model_vs_momentum      Δ 0.0551 ± 0.0025  [+0.0527,+0.0582]  pos 5/5  CI(median) [+0.0335,+0.0753]  sig 5/5
+  model_vs_random        Δ 0.1844 ± 0.0062  [+0.1774,+0.1935]  pos 5/5  CI(median) [+0.1560,+0.2089]  sig 5/5
+
+[price+sent vs price, news-only]  n=4559  seeds=5  labels={'FLAT': 3294, 'UP': 690, 'DOWN': 575}
+  F1 model      0.5384 ± 0.0038
+  F1 reference  0.5176 ± 0.0030
+  F1 majority   0.2796 ± 0.0000
+  F1 no_change  0.2796 ± 0.0000
+  F1 momentum   0.4514 ± 0.0000
+  F1 random     0.3324 ± 0.0066
+  model_vs_reference     Δ 0.0208 ± 0.0048  [+0.0145,+0.0262]  pos 5/5  CI(median) [+0.0041,+0.0384]  sig 3/5
+  model_vs_majority      Δ 0.2587 ± 0.0038  [+0.2555,+0.2644]  pos 5/5  CI(median) [+0.2356,+0.2785]  sig 5/5
+  model_vs_no_change     Δ 0.2587 ± 0.0038  [+0.2555,+0.2644]  pos 5/5  CI(median) [+0.2356,+0.2785]  sig 5/5
+  model_vs_momentum      Δ 0.0869 ± 0.0038  [+0.0837,+0.0926]  pos 5/5  CI(median) [+0.0641,+0.1077]  sig 5/5
+  model_vs_random        Δ 0.2060 ± 0.0065  [+0.1984,+0.2144]  pos 5/5  CI(median) [+0.1781,+0.2278]  sig 5/5
+
+[sent-only, news-only]  n=4559  seeds=5  labels={'FLAT': 3294, 'UP': 690, 'DOWN': 575}
+  F1 model      0.3989 ± 0.0058
+  F1 reference  0.5176 ± 0.0030
+  F1 majority   0.2796 ± 0.0000
+  F1 no_change  0.2796 ± 0.0000
+  F1 momentum   0.4514 ± 0.0000
+  F1 random     0.3324 ± 0.0066
+  model_vs_reference     Δ -0.1187 ± 0.0060  [-0.1243,-0.1088]  pos 0/5  CI(median) [-0.1465,-0.0920]  sig 5/5
+  model_vs_majority      Δ 0.1193 ± 0.0058  [+0.1105,+0.1260]  pos 5/5  CI(median) [+0.0968,+0.1465]  sig 5/5
+  model_vs_no_change     Δ 0.1193 ± 0.0058  [+0.1105,+0.1260]  pos 5/5  CI(median) [+0.0968,+0.1465]  sig 5/5
+  model_vs_momentum      Δ -0.0525 ± 0.0058  [-0.0613,-0.0458]  pos 0/5  CI(median) [-0.0776,-0.0232]  sig 5/5
+  model_vs_random        Δ 0.0665 ± 0.0113  [+0.0480,+0.0769]  pos 5/5  CI(median) [+0.0399,+0.0940]  sig 5/5

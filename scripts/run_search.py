@@ -19,6 +19,7 @@ import os
 import sys
 
 import pandas as pd
+import time
 import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -125,6 +126,9 @@ def main(argv=None) -> int:
     ap.add_argument("--config", default=os.path.join(REPO_ROOT, "config", "settings.yaml"))
     ap.add_argument("--out", default=None, help="run dir (default runs/<arm>[_<scope>]/seed<k>)")
     ap.add_argument("--force", action="store_true", help="overwrite an existing run dir")
+    ap.add_argument("--resume", action="store_true",
+                    help="LLM arms: rerun a stopped run, replaying its transcript.jsonl (no API calls) up to "
+                         "where it stopped, then calling the API; the stopped run dir moves to runs/_stopped/")
     ap.add_argument("--dry-run", action="store_true", help="plan only: no fitting, no API calls, no writes")
     args = ap.parse_args(argv)
     guard_not_sealed(args.data)
@@ -160,8 +164,26 @@ def main(argv=None) -> int:
                                          if r["ok"] else f"INVALID  {r['error']}"))
         return 0
 
+    extra = {"scope": args.scope}
+    if args.resume:
+        import shutil
+        from ksearch.search.arms.llm import ResumeClient, read_transcript
+        rec_path = os.path.join(out, "transcript.jsonl")
+        if not hasattr(arm, "client") or not os.path.exists(rec_path):
+            raise SystemExit(f"--resume needs an LLM arm and {rec_path}")
+        with open(os.path.join(out, "run.json")) as f:
+            if json.load(f).get("status") == "complete":
+                raise SystemExit(f"{out} is complete; nothing to resume")
+        recording = read_transcript(rec_path)
+        stash = os.path.join(REPO_ROOT, "runs", "_stopped", os.path.relpath(out, os.path.join(REPO_ROOT, "runs")))
+        stash = stash + "_" + time.strftime("%Y%m%dT%H%M%S")
+        os.makedirs(os.path.dirname(stash), exist_ok=True)
+        shutil.move(out, stash)
+        arm.client = ResumeClient(recording, arm.client)
+        extra.update(resumed_from=os.path.relpath(stash, REPO_ROOT), replayed_calls=len(recording))
+        print(f"resuming: {len(recording)} recorded calls to replay; stopped run moved to {stash}")
     run = run_search(arm, events, cfg, budget, args.seed, out, data_path=args.data, folds=folds,
-                     force=args.force, extra={"scope": args.scope})
+                     force=args.force, extra=extra)
     t = run["totals"]
     print(f"{args.arm} seed {args.seed}: {run['trials_completed']} trials  accepted {t['accepted']}  "
           f"rejected {t['rejected']}  failed {t['failed']}  duplicate {t['duplicate']}  -> {out}")

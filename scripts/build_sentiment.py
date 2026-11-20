@@ -27,6 +27,7 @@ import pandas as pd
 import yaml
 
 from ksearch.data.manifest import REPO_ROOT
+from ksearch.data.relevance import is_relevant, topic_terms
 from ksearch.data.news import RAW_DIR, GuardianClient, in_window, market_query, search_key, search_window
 from ksearch.features.sentiment import SENTIMENT_FEATURES, SentimentFeatureEngineer
 
@@ -69,10 +70,31 @@ def api_urls(market: dict, t0s, lookback_h: float) -> list[str] | None:
     return urls
 
 
+def load_headline_index() -> dict:
+    """url -> (headline, lead) from the saved API pages and the Spring seed articles."""
+    idx = {}
+    with gzip.open(os.path.join(SEED, "articles.jsonl.gz"), "rt") as f:
+        for line in f:
+            a = json.loads(line)
+            idx[a["url"]] = (a.get("title", ""), a.get("text", "")[:300])
+    api = os.path.join(RAW_DIR, "api")
+    for d in os.listdir(api):
+        for p in os.listdir(os.path.join(api, d)):
+            if p.startswith("page_"):
+                with gzip.open(os.path.join(api, d, p), "rt") as f:
+                    for i in json.load(f).get("response", {}).get("results", []):
+                        fl = i.get("fields", {})
+                        idx[i.get("webUrl", "")] = (i.get("webTitle", ""), fl.get("trailText", "") or "")
+    return idx
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--build-dir", required=True)
     ap.add_argument("--model", default="finbert")
+    ap.add_argument("--relevance", action="store_true",
+                    help="keep only articles whose headline/lead mention the market's topic terms")
+    ap.add_argument("--out-name", default="sentiment.parquet")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     with open(os.path.join(REPO_ROOT, "config", "settings.yaml")) as f:
@@ -86,6 +108,7 @@ def main() -> int:
     scores = scores.drop_duplicates("url").set_index("url")
     seed_urls, _ = load_seed_index()
     eng = SentimentFeatureEngineer()
+    heads = load_headline_index() if args.relevance else None
 
     rows, status = [], {"spring_seed": 0, "api": 0, "no_search": 0}
     for ticker, ev in events.groupby("market_ticker"):
@@ -97,6 +120,9 @@ def main() -> int:
             urls, provisional = api_urls(m, ev.t0.tolist(), lookback_h), 0
             status["api" if urls is not None else "no_search"] += 1
             urls = urls or []
+        if heads is not None:
+            terms = topic_terms(m.get("title", ""))
+            urls = [u for u in urls if u in heads and is_relevant(terms, *heads[u])]
         known = scores.reindex([u for u in urls if u in scores.index])
         art_ts = np.array([datetime.fromisoformat(d.replace("Z", "+00:00")).timestamp() for d in known["date"]])
         for t0 in ev.t0:
@@ -116,7 +142,7 @@ def main() -> int:
     df = df.rename(columns={"t0": "event_timestamp"})
     df = eng.compute_cross_event_features(df).rename(columns={"event_timestamp": "t0"})
     df.loc[no_news, "sentiment_shock"] = np.nan
-    out = os.path.join(args.build_dir, "sentiment.parquet")
+    out = os.path.join(args.build_dir, args.out_name)
     df.to_parquet(out, index=False)
     print(json.dumps({"events": len(df), "with_>=1_article": int((~no_news).sum()),
                       "with_>=2_articles (Spring rule)": int((df.n_articles >= 2).sum()),

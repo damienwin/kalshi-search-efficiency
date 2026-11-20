@@ -125,13 +125,13 @@ def pull_sample(cfg: dict, per_month: int, seed: int) -> None:
                    "total_kept": len(kept)}, f, indent=2)
 
 
-def merge() -> None:
+def merge(out_name: str) -> None:
     rows = read_jsonl(os.path.join(BUILD, "universe_spring.jsonl"))
     sample_path = os.path.join(BUILD, "universe_sample.jsonl")
     if os.path.exists(sample_path):
         rows += read_jsonl(sample_path)
     rows.sort(key=lambda m: (m["close_time"], m["ticker"]))
-    out = os.path.join(BUILD, "v1")
+    out = os.path.join(BUILD, out_name)
     os.makedirs(out, exist_ok=True)
     write_jsonl(os.path.join(out, "universe.jsonl"), rows)
     log.info("merged scope: %d markets -> %s", len(rows), out)
@@ -142,6 +142,7 @@ def main() -> int:
     ap.add_argument("what", choices=["spring", "sample", "merge"])
     ap.add_argument("--per-month", type=int, default=22)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--out", default="v1", help="merge output dir name under data/build/")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     cfg = load_cfg()
@@ -150,7 +151,7 @@ def main() -> int:
     elif args.what == "sample":
         pull_sample(cfg, args.per_month, args.seed)
     else:
-        merge()
+        merge(args.out)
     return 0
 
 

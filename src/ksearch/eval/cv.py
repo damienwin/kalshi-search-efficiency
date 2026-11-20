@@ -11,11 +11,12 @@ import math
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import f1_score, log_loss
-from sklearn.utils.class_weight import compute_sample_weight
+from sklearn.metrics import f1_score, log_loss, roc_auc_score
 from xgboost import XGBClassifier
 
 from ksearch.eval.folds import walk_forward_folds
+from ksearch.model.direction import (flip_cost_decision, flip_penalty_proba, train_weights,
+                                     two_stage_proba)
 
 LABELS = ["DOWN", "FLAT", "UP"]
 PREV_TO_LABEL = {-1.0: "DOWN", 0.0: "FLAT", 1.0: "UP"}
@@ -51,7 +52,7 @@ BASELINES = {"majority": majority, "no_change": no_change, "momentum": momentum,
 
 
 # ── model ────────────────────────────────────────────────────────────────────
-def fit_xgb(train, features, params) -> XGBClassifier:
+def fit_xgb(train, features, params, weights: str = "balanced") -> XGBClassifier:
     y = train["label"].map({l: i for i, l in enumerate(LABELS)}).to_numpy()
     clf = XGBClassifier(objective="multi:softprob", num_class=3, eval_metric="mlogloss",
                         n_estimators=params["n_estimators"], max_depth=params["max_depth"],
@@ -59,7 +60,7 @@ def fit_xgb(train, features, params) -> XGBClassifier:
                         colsample_bytree=params["colsample_bytree"],
                         min_child_weight=params["min_child_weight"], random_state=params["seed"],
                         verbosity=0)
-    clf.fit(train[features], y, sample_weight=compute_sample_weight("balanced", y))
+    clf.fit(train[features], y, sample_weight=train_weights(y, weights))
     return clf
 
 
@@ -68,9 +69,47 @@ def predict_proba(clf, val, features) -> np.ndarray:
     return proba / proba.sum(axis=1, keepdims=True)  # float32 softmax drifts off 1
 
 
-def fit_predict_xgb(train, val, features, params) -> tuple[np.ndarray, np.ndarray]:
-    proba = predict_proba(fit_xgb(train, features, params), val, features)
-    return np.array(LABELS, dtype=object)[proba.argmax(1)], proba
+def fit_predict_xgb(train, val, features, params, model=None) -> tuple[np.ndarray, np.ndarray]:
+    """model: None or {"kind": "3class"} is the default 3-class XGBoost; "two_stage" (with
+    "stage2" overrides) and "flip_penalty" (with "lam") are in ksearch.model.direction.
+    "flip_cost" > 1 replaces the argmax call with the expected-cost call. "weights":
+    "balanced" (default) or "none", for every stage (see train_weights)."""
+    model = model or {}
+    kind = model.get("kind", "3class")
+    weights = model.get("weights", "balanced")
+    if kind == "3class":
+        proba = predict_proba(fit_xgb(train, features, params, weights), val, features)
+    elif kind == "two_stage":
+        proba = two_stage_proba(train, val, features, params, model.get("stage2", {}), weights)
+    elif kind == "flip_penalty":
+        proba = flip_penalty_proba(train, val, features, params, model["lam"], weights)
+    else:
+        raise ValueError(f"unknown model kind {kind!r}")
+    proba = proba / proba.sum(axis=1, keepdims=True)
+    return flip_cost_decision(proba, model.get("flip_cost", 1.0)), proba
+
+
+def direction_breakdown(y, pred, proba) -> dict:
+    """Split the 3-class problem into "did it move" and "which way".
+
+    move_auc: P(UP)+P(DOWN) ranking moves above FLAT. dir_auc / dir_acc: on true
+    moves only, P(UP)/(P(UP)+P(DOWN)) for UP vs DOWN. Call counts: flips are moves
+    called in the wrong direction; false moves are FLATs called UP or DOWN."""
+    y, pred = np.asarray(y), np.asarray(pred)
+    moved, called = y != "FLAT", pred != "FLAT"
+    p_move = proba[:, 0] + proba[:, 2]
+    p_up = proba[moved, 2] / np.maximum(p_move[moved], 1e-12)
+    up = y[moved] == "UP"
+    return {
+        "move_auc": float(roc_auc_score(moved, p_move)),
+        "dir_auc": float(roc_auc_score(up, p_up)),
+        "dir_acc": float(((p_up > 0.5) == up).mean()),
+        "n_moves": int(moved.sum()), "n_called_move": int(called.sum()),
+        "right_direction": int((called & moved & (pred == y)).sum()),
+        "flips": int((called & moved & (pred != y)).sum()),
+        "false_moves": int((called & ~moved).sum()),
+        "missed_moves": int((~called & moved).sum()),
+    }
 
 
 # ── inference ────────────────────────────────────────────────────────────────
@@ -124,9 +163,10 @@ def legacy_keep_rule(cand_folds, base_folds, threshold) -> dict:
 
 
 def run_cv(events: pd.DataFrame, features: list[str], cv_cfg: dict, clf_params: dict,
-           reference_features: list[str] | None = None) -> dict:
+           reference_features: list[str] | None = None, model: dict | None = None) -> dict:
     """reference_features: also fit a second XGBoost on these features ("reference")
-    on the same folds, and test model vs reference with the same paired bootstrap."""
+    on the same folds, and test model vs reference with the same paired bootstrap.
+    model: see fit_predict_xgb; applies to the model and the reference."""
     folds = walk_forward_folds(events, cv_cfg["n_splits"], cv_cfg["embargo_h"])
     refs = {"reference": reference_features} if reference_features else {}
     names = ["model"] + list(refs) + list(BASELINES)
@@ -138,9 +178,9 @@ def run_cv(events: pd.DataFrame, features: list[str], cv_cfg: dict, clf_params: 
     for f in folds:
         tr, va = events.iloc[f.train], events.iloc[f.val]
         preds = {"model": None}
-        preds["model"], p = fit_predict_xgb(tr, va, features, clf_params)
+        preds["model"], p = fit_predict_xgb(tr, va, features, clf_params, model)
         for n, feats in refs.items():
-            preds[n], _ = fit_predict_xgb(tr, va, feats, clf_params)
+            preds[n], _ = fit_predict_xgb(tr, va, feats, clf_params, model)
         for n, fn in BASELINES.items():
             preds[n] = fn(tr, va, rng)
         for n in names:
@@ -167,6 +207,8 @@ def run_cv(events: pd.DataFrame, features: list[str], cv_cfg: dict, clf_params: 
         "n_events_scored": int(in_val.sum()),
         "pooled_macro_f1": pooled,
         "pooled_logloss_model": float(log_loss(y, proba[in_val], labels=LABELS)),
+        "direction_breakdown_model": direction_breakdown(y, oof["model"][in_val], proba[in_val]),
+        "model_spec": model or {"kind": "3class"},
         "comparisons": comparisons,
         "legacy_keep_rule_vs_momentum": legacy_keep_rule(pf.f1_model, pf.f1_momentum,
                                                          cv_cfg["keep_threshold"]),

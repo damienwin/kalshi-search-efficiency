@@ -1,0 +1,16 @@
+{
+  "n_scored": 17890,
+  "data": "/Users/damienwin/harness-projects/kalshi-search-efficiency/data/build/v2/dev.parquet",
+  "m_smooth": 10.0,
+  "macro_f1": {
+    "majority": 0.31076362985288414,
+    "random": 0.327975702702146,
+    "momentum": 0.45402909235534317
+  },
+  "balanced_logloss": {
+    "uniform": 1.0986122886681096,
+    "majority_rates": 1.669131996426732,
+    "momentum_rates": 1.4842788256188169,
+    "momentum_balanced": 1.0060839624854583
+  }
+}

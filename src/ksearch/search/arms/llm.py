@@ -95,6 +95,9 @@ DEFAULTS = {
     "max_tokens": 16000,      # non-streaming ceiling; thinking shares it
     "effort": "high",         # hypothesis generation is reasoning-sensitive
     "temperature": None,      # None = not sent (Opus 5.5 returns 400 on it)
+    "max_refusal_retries": 8,  # resends of an unchanged request after an empty refusal (backoff 2s doubling,
+                               # capped at 120s: ~8 min in all); then the trial fails as "refused"; 0 = off
+    "max_refused_trials": 3,  # that many refused trials in a row stops the run (ProposerUnavailable)
     "max_repairs": 2,         # re-asks after a SpecError; 3 calls per trial at most
     "history_cap": 250,       # > planned budget of 200, so never binds in the study
 }
@@ -373,6 +376,11 @@ class LLMClient(Protocol):
     def complete(self, system: str, messages: list[dict], **params: Any) -> Completion: ...
 
 
+class ProposerUnavailable(RuntimeError):
+    """The API refused every trial's request for several trials in a row (max_refused_trials),
+    which looks like an outage on the provider's side; the run stops instead of charging them."""
+
+
 class LLMConfigError(RuntimeError):
     """No usable credentials; raised only when a real call is attempted."""
 
@@ -502,6 +510,24 @@ class ReplayClient:
         return Completion.from_dict(e["response"])
 
 
+class ResumeClient:
+    """Resume a stopped run: serve the recorded calls in order (checked like ReplayClient), then
+    pass every later call to the live client. The search loop re-evaluates the replayed trials
+    itself, so the resumed run's trials, transcript and outcomes are those of an unbroken run."""
+
+    def __init__(self, transcript: list[dict], live: LLMClient):
+        self.replay, self.live = ReplayClient(transcript), live
+
+    @property
+    def replayed(self) -> int:
+        return self.replay.i
+
+    def complete(self, system: str, messages: list[dict], **params: Any) -> Completion:
+        if self.replay.i < len(self.replay.entries):
+            return self.replay.complete(system, messages, **params)
+        return self.live.complete(system, messages, **params)
+
+
 def write_transcript(path: str | Path, transcript: list[dict]) -> None:
     with open(path, "w") as f:
         for e in transcript:
@@ -542,6 +568,8 @@ class LLMArm(Arm):
     def __init__(self, seed: int, mode: str = "full", client: LLMClient | None = None,
                  model: str | None = None, max_tokens: int | None = None, effort: str | None = None,
                  temperature: float | None = None, max_repairs: int | None = None,
+                 max_refusal_retries: int | None = None,
+                 max_refused_trials: int | None = None,
                  history_cap: int | None = None, settings_path: str | Path | None = None,
                  **grammar_kwargs: Any):
         super().__init__(seed)
@@ -555,7 +583,10 @@ class LLMArm(Arm):
         self.effort = pick(effort, "effort")
         self.temperature = pick(temperature, "temperature")
         self.max_repairs = int(pick(max_repairs, "max_repairs"))
+        self.max_refusal_retries = int(pick(max_refusal_retries, "max_refusal_retries"))
         self.history_cap = int(pick(history_cap, "history_cap"))
+        self.max_refused_trials = int(pick(max_refused_trials, "max_refused_trials"))
+        self.refused_trials = 0                # consecutive trials whose request was always refused
         self.grammar_kwargs = grammar_kwargs   # forwarded to parse/catalog (e.g. include_cross)
         self.client: LLMClient = client if client is not None else AnthropicClient()
         self.transcript: list[dict] = []
@@ -578,11 +609,15 @@ class LLMArm(Arm):
 
     def propose(self, state: SearchState) -> Proposal:
         system, user = self.build_prompt(state)
-        params = self.request_params()
+        # Send exactly what the transcript records (_norm sorts keys). The API's refusal
+        # behaviour depends on key order: OUTPUT_SCHEMA in source order ("type" first) was
+        # refused nearly every time while the sorted form, as logged and replayed, was not.
+        params = _norm(self.request_params())
         failures: list[tuple[str, str]] = []
         calls: list[dict] = []
         rationale, spec_out, valid = "", "", False
-        for attempt in range(self.max_repairs + 1):
+        attempt = refusals = 0
+        while attempt <= self.max_repairs:
             rationale = ""
             content = user if not failures else repair_prompt(user, failures)
             messages = [{"role": "user", "content": content}]
@@ -592,6 +627,31 @@ class LLMArm(Arm):
                      "response": c.to_dict()}
             self.transcript.append(entry)
             calls.append(entry)
+            if c.stop_reason == "refusal" and self.max_refusal_retries:
+                # Empty API-side refusals come in bursts and are not tied to the request (smoke
+                # tests: refused requests succeeded when replayed unchanged minutes later, on two
+                # models), so resend the same message with backoff; this is neither a repair nor a
+                # bad proposal and costs no repair or trial budget. A burst that outlasts the
+                # retries stops the run rather than charging the arm a failed trial.
+                if refusals >= self.max_refusal_retries:
+                    # Smoke tests saw short API-wide bursts; full runs also saw one exact request
+                    # refused for 30+ min while other seeds' requests went through, so retrying it
+                    # unchanged cannot help. The proposer failed to propose: charge a failed trial
+                    # (the next trial's prompt differs). Several such trials in a row is an outage.
+                    self.refused_trials += 1
+                    if self.refused_trials >= self.max_refused_trials:
+                        raise ProposerUnavailable(
+                            f"trial {state.trial}: {self.refused_trials} trials in a row refused "
+                            f"{refusals + 1} times each")
+                    failures.append(("", f"refused {refusals + 1} times in a row; no proposal"))
+                    spec_out = ""
+                    break
+                refusals += 1
+                time.sleep(min(2.0 ** refusals, 120.0))
+                continue
+            refusals = 0
+            self.refused_trials = 0
+            attempt += 1
             try:
                 rationale, spec, raw = _read_answer(c)
                 spec_out = spec
@@ -606,7 +666,8 @@ class LLMArm(Arm):
         for e in calls:
             usage.update({k: v or 0 for k, v in e["response"]["usage"].items()})
         meta = {"arm": self.name, "mode": self.mode, "model": self.model, "seed": self.seed,
-                "valid": valid, "repairs": len(calls) - 1, "errors": [err for _, err in failures],
+                "valid": valid, "repairs": attempt - 1 if attempt else 0, "refusals": sum(
+                    e["response"]["stop_reason"] == "refusal" for e in calls), "errors": [err for _, err in failures],
                 "usage": dict(usage), "latency_s": round(sum(e["response"]["latency_s"] for e in calls), 3),
                 "served_models": sorted({e["response"]["model"] or "" for e in calls}), "calls": calls}
         return Proposal(spec_json=spec_out, rationale=rationale, meta=meta)

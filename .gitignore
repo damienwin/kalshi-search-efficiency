@@ -24,3 +24,25 @@ catboost_info/
 
 # Search runs: per-event dev predictions (labels, tickers) stay local
 runs/
+
+# rendered reports stay local
+docs/reports/*.pdf
+
+# paper build outputs (never commit PDFs)
+paper/*.pdf
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out
+paper/figures/*.pdf
+paper/*.zip
+# advisor-facing planning notes stay local
+paper/outline.*
+
+# local logs and per-event prediction tables (labels, tickers) stay local
+data/logs/
+results/*.parquet
+
+# paper draft stays local (shared via Overleaf)
+paper/
