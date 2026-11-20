@@ -7,7 +7,9 @@ written on 2026-11-19 from the run records, `git log`/`git diff`, file
 timestamps, and no-API reruns (section 4). No LLM arm was called and `sealed/`
 was not touched.
 
-**Status, 2026-11-19 (later the same day).** Step 1 of section 5 is done: the code the runs used is commit `748b15f` (call it `R`), the v2 manifests are `74101d7`, and the paper's scripts are `254e8a1`. Steps 2-5 (replay every LLM run at `R`, `results/provenance.json`, the dirty-tree guard) are not done.
+**Status, 2026-11-19 (later the same day).** Step 1 of section 5 is done: the code the runs used is commit `e35b774` (call it `R`), the v2 manifests are `a8d1435`, and the paper's scripts are `6ca3d14`. Steps 2-5 (replay every LLM run at `R`, `results/provenance.json`, the dirty-tree guard) are not done.
+
+**Commit hashes.** The hashes in this note are those on `main`. These commits were rewritten once, before their first push, to drop report drafts and the paper source from the history; no code changed. Each `run.json` records the earlier hash: `7a4a020` is `0b1bde3`, `ace7d29` is `ab7f330`, `082e952` is `d75a20e`, `5f4c768` is `3d010f8`, `5cb3a3d` is `99f71b6`, `e046e7f` is `3e7fd40`.
 
 Times are UTC. `run.json` start and end times are UTC; commit times are converted.
 
@@ -16,10 +18,10 @@ Times are UTC. `run.json` start and end times are UTC; commit times are converte
 - **Config and data are the same for all 20 runs.** `search`, `cv`,
   `classifier`, `plan`, package `versions` and the dev-set hash
   (`be87830a…`, `data/build/v2/dev.parquet`) are identical in every `run.json`.
-- **Random and TPE are not affected by the commit split.** Between `7a4a020`
-  and `ace7d29` only `src/ksearch/search/arms/llm.py`, its tests and the new
+- **Random and TPE are not affected by the commit split.** Between `0b1bde3`
+  and `ab7f330` only `src/ksearch/search/arms/llm.py`, its tests and the new
   `scripts/summarize_arms.py` changed. No code that random or TPE import
-  changed, so TPE seed 0 (at `7a4a020`) and seeds 1-4 (at `ace7d29`) ran the
+  changed, so TPE seed 0 (at `0b1bde3`) and seeds 1-4 (at `ab7f330`) ran the
   same code path.
 - **"Dirty" mostly meant report drafts.** `dirty` is `git status --porcelain
   --untracked-files=no`, so it counts only modified tracked files. Most runs
@@ -37,9 +39,9 @@ Times are UTC. `run.json` start and end times are UTC; commit times are converte
 - **The null calibration ran before its script was committed**, and its
   `meta.json` records no commit.
 - **Reruns at clean commits match the records exactly**, bit for bit (section
-  4): random seed 4 at `7a4a020`; llm_full seed 0 and llm_no_history seed 4
-  replayed from their transcripts at `ace7d29` with no API calls; 24 sampled
-  null-calibration probes at `082e952` and `7a4a020`. So the dirty trees did
+  4): random seed 4 at `0b1bde3`; llm_full seed 0 and llm_no_history seed 4
+  replayed from their transcripts at `ab7f330` with no API calls; 24 sampled
+  null-calibration probes at `d75a20e` and `0b1bde3`. So the dirty trees did
   not change those results; the only behavioural difference is item 1 in
   section 3.
 
@@ -47,22 +49,22 @@ Times are UTC. `run.json` start and end times are UTC; commit times are converte
 
 | Group | Runs | Recorded commit | Code actually used | Evidence |
 |---|---|---|---|---|
-| A | random 0-4, tpe 0 | `7a4a020` | `7a4a020`; dirt in files these arms don't import | 7a4a020..ace7d29 touches only `llm.py`, its tests, `summarize_arms.py`; random seed 4 rerun at clean `7a4a020` (section 4) |
-| B | tpe 1-4, llm_full 0, 1, 4, llm_no_history 0, 1 | `ace7d29` | `ace7d29`; dirt in report drafts, `.gitignore`, `make_pdf.py` | the uncommitted `llm.py` edits are dated after these runs started (below); the _stopped runs that started with seed 4 crashed with the *committed* refusal message; llm replays at clean `ace7d29` (section 4) |
-| C | llm_full 2, 3 | `ace7d29` | `ace7d29` + uncommitted `llm.py` (refusal policy, `ResumeClient`) + `run_search.py --resume` | `argv` has `--resume`; `run.json` has `resumed_from`, `replayed_calls`; failed trials carry the new policy's error text |
-| C | llm_no_history 2-4 | `ace7d29` | same uncommitted code as above, policy never triggered (0 refusals) | started 2026-11-16, after the edits; `--force`; seed 4 replays identically at clean `ace7d29` (section 4), so in effect these ran committed code |
+| A | random 0-4, tpe 0 | `0b1bde3` | `0b1bde3`; dirt in files these arms don't import | 0b1bde3..ab7f330 touches only `llm.py`, its tests, `summarize_arms.py`; random seed 4 rerun at clean `0b1bde3` (section 4) |
+| B | tpe 1-4, llm_full 0, 1, 4, llm_no_history 0, 1 | `ab7f330` | `ab7f330`; dirt in report drafts, `.gitignore`, `make_pdf.py` | the uncommitted `llm.py` edits are dated after these runs started (below); the _stopped runs that started with seed 4 crashed with the *committed* refusal message; llm replays at clean `ab7f330` (section 4) |
+| C | llm_full 2, 3 | `ab7f330` | `ab7f330` + uncommitted `llm.py` (refusal policy, `ResumeClient`) + `run_search.py --resume` | `argv` has `--resume`; `run.json` has `resumed_from`, `replayed_calls`; failed trials carry the new policy's error text |
+| C | llm_no_history 2-4 | `ab7f330` | same uncommitted code as above, policy never triggered (0 refusals) | started 2026-11-16, after the edits; `--force`; seed 4 replays identically at clean `ab7f330` (section 4), so in effect these ran committed code |
 
 Timeline:
 
 | When (UTC) | Event |
 |---|---|
 | 11-10 18:30-21:40 | null calibration, 1,000 noise/shuffle probes (script uncommitted) |
-| 11-11 03:31 | `082e952` commits `run_null_calibration.py` |
+| 11-11 03:31 | `d75a20e` commits `run_null_calibration.py` |
 | 11-11 05:58-06:43 | positive-control probes (`--control`, uncommitted) |
-| 11-11 06:43:08 | `7a4a020` commits `--control` |
+| 11-11 06:43:08 | `0b1bde3` commits `--control` |
 | 11-11 06:43-09:40 | random seeds 0-4 (seed 0 starts 2 s after the commit) |
-| 11-12 21:33-22:23 | tpe seed 0 at `7a4a020` |
-| 11-12 21:37, 21:50, 22:04 | `5f4c768`, `5cb3a3d`, `ace7d29` (LLM refusal handling, summarize_arms) |
+| 11-12 21:33-22:23 | tpe seed 0 at `0b1bde3` |
+| 11-12 21:37, 21:50, 22:04 | `3d010f8`, `99f71b6`, `ab7f330` (LLM refusal handling, summarize_arms) |
 | 11-12 22:23 - 11-13 03:17 | tpe seeds 1-4 |
 | 11-13 03:18-05:50 | llm_full 0, 1; llm_no_history 0, 1 |
 | 11-13 05:02 | `.gitignore` edited (paper build outputs) |
@@ -83,7 +85,7 @@ error messages in the stopped runs, and the reruns.
 
 ## 3. Differences that could affect results
 
-1. **Refusal policy (llm_full seeds 2 and 3).** Committed `ace7d29`: after an
+1. **Refusal policy (llm_full seeds 2 and 3).** Committed `ab7f330`: after an
    API refusal, resend the same request up to 20 times, then stop the run
    (`ProposerUnavailable`) so the arm is never charged for a provider outage.
    Uncommitted: resend up to 8 times, then charge the trial as failed
@@ -110,8 +112,8 @@ error messages in the stopped runs, and the reruns.
    discarded or replaced, so the reported seeds are not a selection.
 
 4. **Null calibration.** `runs/null_calibration*/meta.json` has no git field.
-   The noise probes ran before `082e952` and the control probes before
-   `7a4a020`, on the then-uncommitted script. The scoring code they call
+   The noise probes ran before `d75a20e` and the control probes before
+   `0b1bde3`, on the then-uncommitted script. The scoring code they call
    (`gate.py`, `trial.py`, `loop.py`) has not changed since `c62ec11`. A sample
    rerun at the commits matches (section 4).
 
@@ -144,14 +146,14 @@ prompts (which, for llm_full, contain every earlier trial's outcome).
 
 | Check | Commit | Result |
 |---|---|---|
-| llm_no_history seed 4, full replay | `ace7d29` | **identical**: 101/101 recorded calls matched; all 100 trials equal (max numeric difference 0); totals, final reference and `oof/final.parquet` equal |
-| random seed 4, full rerun | `7a4a020` | **identical**: all 100 trials (status, formula, gate numbers; max numeric difference 0), totals and final reference |
-| llm_full seed 0, full replay | `ace7d29` | **identical**: 100/100 recorded calls matched (so every prompt, including the trial history, was rebuilt exactly); all 100 trials equal, same accepted feature at trial 74; totals, final reference and `oof/final.parquet` equal |
-| null calibration, noise/shuffle probes 0, 50, …, 950 (20) | `082e952` | **identical**: every field of all 20 probes (gain, DM p, legacy verdict, gate verdict) |
-| null calibration control, probes 0, 6, 12, 18 | `7a4a020` | **identical**: all 4, including the one accepted signal probe and its placebo threshold |
+| llm_no_history seed 4, full replay | `ab7f330` | **identical**: 101/101 recorded calls matched; all 100 trials equal (max numeric difference 0); totals, final reference and `oof/final.parquet` equal |
+| random seed 4, full rerun | `0b1bde3` | **identical**: all 100 trials (status, formula, gate numbers; max numeric difference 0), totals and final reference |
+| llm_full seed 0, full replay | `ab7f330` | **identical**: 100/100 recorded calls matched (so every prompt, including the trial history, was rebuilt exactly); all 100 trials equal, same accepted feature at trial 74; totals, final reference and `oof/final.parquet` equal |
+| null calibration, noise/shuffle probes 0, 50, …, 950 (20) | `d75a20e` | **identical**: every field of all 20 probes (gain, DM p, legacy verdict, gate verdict) |
+| null calibration control, probes 0, 6, 12, 18 | `0b1bde3` | **identical**: all 4, including the one accepted signal probe and its placebo threshold |
 
 Not checked (CPU time): TPE (50-90 min per seed), the other seeds. llm_full
-seeds 2 and 3 cannot replay at `ace7d29`: their transcripts contain 9 refusals
+seeds 2 and 3 cannot replay at `ab7f330`: their transcripts contain 9 refusals
 in a row, and the committed code would ask for a 10th call the recording does
 not have. They replay only at a commit that contains the uncommitted `llm.py`.
 
@@ -171,7 +173,7 @@ No rerun of an LLM arm is needed. Recommended order:
 2. **Add a replay script and a run-to-commit table.** Add
    `scripts/replay_run.py` (the scratch version is below) and a committed
    `results/provenance.json` mapping each run directory to the commit that
-   reproduces it (group A → `7a4a020`, group B → `ace7d29`, group C → `R`).
+   reproduces it (group A → `0b1bde3`, group B → `ab7f330`, group C → `R`).
    `R` also reproduces groups A and B: it contains their code, and the new
    refusal policy only acts when a refusal happens, which never did in those
    runs. Check that by replaying at `R`.

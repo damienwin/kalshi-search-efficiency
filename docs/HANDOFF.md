@@ -202,7 +202,7 @@ so in the paper.
 ## Tests
 
 ```bash
-python -m pytest -q                 # 586 tests at ace7d29, ~90 s; no network
+python -m pytest -q                 # 586 tests at ab7f330, ~90 s; no network
 ```
 
 The leakage controls L1-L14 are listed in the README with the test that enforces
@@ -223,11 +223,11 @@ each. The `live` marker exists, but no test currently uses it.
 
 Provenance (details and commands in [PROVENANCE.md](PROVENANCE.md)):
 
-1. *(Done: `748b15f`, `254e8a1`.)* Commit the code the runs actually used: the uncommitted LLM refusal policy and
+1. *(Done: `e35b774`, `6ca3d14`.)* Commit the code the runs actually used: the uncommitted LLM refusal policy and
    `--resume` (`llm.py`, `run_search.py`, `test_arms_llm.py`), and the untracked
    `scripts/paper_baselines.py`, `scripts/paper_figures.py`,
    `src/ksearch/data/relevance.py` + `tests/test_relevance.py`.
-2. *(Done: `74101d7`.)* Commit the data manifests the runs depend on: `data/manifests/dataset_v2.json`,
+2. *(Done: `a8d1435`.)* Commit the data manifests the runs depend on: `data/manifests/dataset_v2.json`,
    `kalshi_20260924.jsonl`, `kalshi_sample_20260924.jsonl`.
 3. *(Done: Appendix E and Limitations.)* Disclose in the paper that 4 of 500 LLM-full trials were charged as failed
    because the API refused the request, not because the proposal was bad.
@@ -243,7 +243,7 @@ Study:
    script does not exist yet.
 6. **Contamination split (C4).** Split the sealed slice at the proposer's
    training cutoff and compare LLM-full gains before and after it.
-7. Paper sections still missing or not started: setup, significance, results
+7. The paper source (`paper/`) is not in this repository; ask the author for the Overleaf project. Paper sections still missing or not started: setup, significance, results
    (sealed), abstract; related work is new. See `paper/outline.md` for the
    section-by-section plan and what the author approved.
 8. *(Done: the paper now includes a 400-dpi PNG; figure PDFs are gitignored.)* `paper/figures/fig1_running_gain.pdf` is a PDF the paper includes. Either
